@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+.node_modules.lock
+
+# build / framework caches
+dist/
+.output/
+.nitro/
+.tanstack/
+.vercel/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# sandbox internals (not the Aether product)
+.grok/
+artifacts/
+.project_id
+AGENTS.md
+attachments/
+public/__grok/
+
+# grok chrome captures, not product screenshots
+screenshots/app-builder-*
+
+# logs / OS
+*.log
+.DS_Store

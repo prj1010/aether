@@ -1,0 +1,77 @@
+[
+  {
+    "id": "eval-cert",
+    "question": "What is our certification reimbursement policy?",
+    "expectedAnswer": "80% of exam and official training fees, up to $2,500 per employee per fiscal year, with manager approval required before enrollment.",
+    "expectedSources": [
+      "doc-cert-policy",
+      "doc-ld-guidelines"
+    ],
+    "kind": "factual"
+  },
+  {
+    "id": "eval-vacation",
+    "question": "What is the vacation policy?",
+    "expectedAnswer": "22 days of PTO per year, with up to 10 days carryover.",
+    "expectedSources": [
+      "doc-leave"
+    ],
+    "kind": "factual"
+  },
+  {
+    "id": "eval-forge",
+    "question": "Which architecture was adopted after the team moved from Helios to Nimbus, and what were the reasons?",
+    "expectedAnswer": "Forge, for multi-region failover, 40% cost reduction, and unified observability.",
+    "expectedSources": [
+      "doc-adr-021",
+      "doc-adr-014"
+    ],
+    "kind": "multi_hop"
+  },
+  {
+    "id": "eval-current-arch",
+    "question": "What is the current production architecture?",
+    "expectedAnswer": "Forge.",
+    "expectedSources": [
+      "doc-arch-current",
+      "doc-adr-021"
+    ],
+    "kind": "temporal"
+  },
+  {
+    "id": "eval-parental",
+    "question": "How much paid parental leave do primary caregivers get?",
+    "expectedAnswer": "16 weeks fully paid after 6 months of service.",
+    "expectedSources": [
+      "doc-leave"
+    ],
+    "kind": "factual"
+  },
+  {
+    "id": "eval-pulse-retention",
+    "question": "What is the default log retention for Pulse Enterprise?",
+    "expectedAnswer": "90 days.",
+    "expectedSources": [
+      "doc-pulse"
+    ],
+    "kind": "exact"
+  },
+  {
+    "id": "eval-stipend",
+    "question": "What is our monthly remote work stipend?",
+    "expectedAnswer": "There is no recurring remote-work stipend. A one-time $400 home-office kit is provided.",
+    "expectedSources": [
+      "doc-remote"
+    ],
+    "kind": "factual"
+  },
+  {
+    "id": "eval-sev1",
+    "question": "When do we notify customers of a Sev-1 incident?",
+    "expectedAnswer": "Within 30 minutes of confirmation.",
+    "expectedSources": [
+      "doc-incident"
+    ],
+    "kind": "factual"
+  }
+]

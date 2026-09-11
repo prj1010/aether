@@ -28,3 +28,12 @@ screenshots/app-builder-*
 # logs / OS
 *.log
 .DS_Store
+
+# SDK build
+**/__pycache__/
+*.egg-info/
+.pytest_cache/
+sdk/python/build/
+sdk/python/dist/
+sdk/go/cmd/aether/aether
+

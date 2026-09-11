@@ -6,6 +6,46 @@ Ask a Northstar Systems corpus. Simple policy questions stay on the fast path (h
 
 The generator is **model-agnostic**. Retrieval, graph, citations, and eval do not depend on any one vendor. Plug in OpenAI, Azure OpenAI, Anthropic, Groq, Gemini, Mistral, OpenRouter, Together, xAI, Ollama, or any OpenAI-compatible endpoint. With no key, answers stay extractive from the corpus.
 
+## SDKs
+
+Same engine as the app: hybrid BM25 + hashed dense, entity graph, cited answers. Golden eval: **Recall@k 100% · MRR 1.00**.
+
+### Python
+
+```bash
+cd sdk/python
+pip install -e .
+aether ask "What is the vacation policy?"
+aether eval
+```
+
+```python
+from aether import Engine
+engine = Engine.northstar()
+answer = engine.ask("What is our certification reimbursement policy?")
+print(answer.text, answer.citations)
+```
+
+See [`sdk/python/README.md`](sdk/python/README.md).
+
+### Go
+
+```bash
+cd sdk/go
+go test ./...
+go run ./cmd/aether ask "What is the vacation policy?"
+```
+
+```go
+import aether "github.com/prj1010/aether/sdk/go"
+
+eng := aether.NewNorthstar()
+ans := eng.Ask("What is the vacation policy?")
+fmt.Println(ans.Text)
+```
+
+See [`sdk/go/README.md`](sdk/go/README.md).
+
 ## Run locally
 
 **Requires** [Node.js](https://nodejs.org/) 20.19+ or 22 LTS, and npm 10+.

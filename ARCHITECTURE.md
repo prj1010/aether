@@ -2,7 +2,7 @@
 
 Aether is an adaptive enterprise knowledge engine. It does the minimum retrieval and reasoning required for a reliable, cited answer.
 
-This preview is the live engine. The public API is TypeScript in this app; a future `enterpriserag` Python package would wrap the same contracts.
+This preview is the live engine. Typed SDKs live in `sdk/python` (`aether-rag`) and `sdk/go` and share the same retrieval contracts. A future `enterpriserag` publish would wrap those packages.
 
 ## Comparison
 

@@ -12,24 +12,50 @@ for c in answer.citations:
     print(f"[{c.n}] {c.title} p.{c.page}")
 ```
 
-## Install
+## Install from GitHub
 
-From this repo:
+**Requires** Python 3.10+.
+
+Clone the repo, then install the package:
 
 ```bash
-cd sdk/python
+git clone https://github.com/prj1010/aether.git
+cd aether/sdk/python
 pip install -e .
 # or
 uv pip install -e .
 ```
 
+Install without cloning, straight from git:
+
+```bash
+pip install "git+https://github.com/prj1010/aether.git#subdirectory=sdk/python"
+```
+
+A tagged / branch pin:
+
+```bash
+pip install "git+https://github.com/prj1010/aether.git@main#subdirectory=sdk/python"
+```
+
 ## CLI
+
+After install:
 
 ```bash
 aether ask "What is our certification reimbursement policy?"
 aether search "Forge architecture" -k 5
 aether eval
 aether status
+```
+
+From a clone, without installing the script on `PATH`:
+
+```bash
+git clone https://github.com/prj1010/aether.git
+cd aether/sdk/python
+python -m aether.cli ask "What is the vacation policy?"
+python -m aether.cli eval
 ```
 
 ## Generator

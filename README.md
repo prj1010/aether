@@ -13,10 +13,17 @@ Same engine as the app: hybrid BM25 + hashed dense, entity graph, cited answers.
 ### Python
 
 ```bash
-cd sdk/python
+git clone https://github.com/prj1010/aether.git
+cd aether/sdk/python
 pip install -e .
 aether ask "What is the vacation policy?"
 aether eval
+```
+
+Or without cloning:
+
+```bash
+pip install "git+https://github.com/prj1010/aether.git#subdirectory=sdk/python"
 ```
 
 ```python
@@ -31,9 +38,16 @@ See [`sdk/python/README.md`](sdk/python/README.md).
 ### Go
 
 ```bash
-cd sdk/go
+git clone https://github.com/prj1010/aether.git
+cd aether/sdk/go
 go test ./...
 go run ./cmd/aether ask "What is the vacation policy?"
+```
+
+Or as a module:
+
+```bash
+go get github.com/prj1010/aether/sdk/go@main
 ```
 
 ```go

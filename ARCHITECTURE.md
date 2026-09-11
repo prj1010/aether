@@ -29,8 +29,12 @@ UI (Ask, Knowledge, Inspector, Memory, Analytics, Eval)
         │
    Rerank → MMR context → contradiction check → confidence
         │
-   Generator (Grok) with untrusted-document boundary
+   Generator (pluggable LLM · extractive fallback) with untrusted-document boundary
 ```
+
+## Generator
+
+`src/lib/rag/llm.ts` is a vendor-neutral chat client. Retrieval, graph expansion, rerank, and citations do not depend on any model. Configure `LLM_PROVIDER` plus a key, or let auto-detect pick the first vendor key present. Supported: OpenAI, Azure OpenAI, Anthropic (native messages API), Groq, Gemini, Mistral, OpenRouter, Together, xAI, Ollama, and any OpenAI-compatible `LLM_BASE_URL`. If nothing is configured or the call fails, generation falls back to extractive snippets with citations.
 
 ## Adaptive policy
 

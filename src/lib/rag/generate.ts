@@ -1,4 +1,5 @@
 import type { Candidate, Citation, Conflict, MemoryItem } from "./types";
+import { completeChat } from "./llm";
 import { SYSTEM_PROMPT, wrapUntrusted } from "./security";
 import { snippet } from "./text";
 
@@ -39,52 +40,28 @@ export async function generateAnswer(input: GenerateInput): Promise<GenerateOutp
     };
   }
 
-  const apiKey = process.env.XAI_API_KEY;
   const user = buildUserPrompt(input);
+  const llm = await completeChat({
+    system: SYSTEM_PROMPT,
+    user,
+    temperature: 0.1,
+    maxTokens: 700,
+  });
 
-  if (!apiKey) {
+  if (!llm) {
     return extractive(input, Date.now() - started);
   }
 
-  try {
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "grok-4.5",
-        temperature: 0.1,
-        max_tokens: 700,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      return extractive(input, Date.now() - started);
-    }
-    const body = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
-    const text = body.choices?.[0]?.message?.content?.trim() ?? "";
-    if (!text) return extractive(input, Date.now() - started);
-    const { answer, followups } = splitFollowups(text);
-    return {
-      answer,
-      model: "grok-4.5",
-      usedLlm: true,
-      inputTokens: body.usage?.prompt_tokens ?? Math.ceil(user.length / 4),
-      outputTokens: body.usage?.completion_tokens ?? Math.ceil(text.length / 4),
-      latencyMs: Date.now() - started,
-      followups,
-    };
-  } catch {
-    return extractive(input, Date.now() - started);
-  }
+  const { answer, followups } = splitFollowups(llm.text);
+  return {
+    answer,
+    model: llm.model,
+    usedLlm: true,
+    inputTokens: llm.inputTokens,
+    outputTokens: llm.outputTokens,
+    latencyMs: Date.now() - started,
+    followups,
+  };
 }
 
 function buildUserPrompt(input: GenerateInput): string {
@@ -133,9 +110,8 @@ function extractive(input: GenerateInput, latencyMs: number): GenerateOutput {
 
 function splitFollowups(text: string): { answer: string; followups: string[] } {
   const followups: string[] = [];
-  const lines = text.split("\n");
   const kept: string[] = [];
-  for (const line of lines) {
+  for (const line of text.split("\n")) {
     const m = line.match(/^\s*(?:Follow-up:\s*)(.+)/i);
     if (m?.[1]) followups.push(m[1].trim().replace(/^[-*]\s*/, ""));
     else kept.push(line);

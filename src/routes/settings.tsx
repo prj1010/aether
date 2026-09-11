@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getGeneratorStatus } from "@/lib/server/aether";
 import { useAether } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +31,65 @@ function SettingsPage() {
   const forcePath = useAether((s) => s.forcePath);
   const setForcePath = useAether((s) => s.setForcePath);
   const clearChat = useAether((s) => s.clearChat);
+  const generator = useQuery({ queryKey: ["generator"], queryFn: () => getGeneratorStatus() });
 
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Control</p>
         <h1 className="mt-2 font-display text-3xl italic">Settings</h1>
+
+        <section className="mt-10">
+          <h2 className="text-sm font-medium">Generator</h2>
+          <p className="mt-2 text-sm text-muted">
+            Retrieval is model-agnostic. Plug in any OpenAI-compatible endpoint, Anthropic, Azure,
+            Groq, Gemini, Mistral, OpenRouter, Together, xAI, or a local Ollama — or leave keys
+            unset and answers stay extractive from the corpus.
+          </p>
+          <div className="mt-4 rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">
+                {generator.data?.label ?? "Checking generator…"}
+              </span>
+              {generator.data ? (
+                <Badge variant={generator.data.configured ? "ok" : "default"}>
+                  {generator.data.configured ? "LLM" : "Extractive"}
+                </Badge>
+              ) : null}
+            </div>
+            <p className="mt-2 font-mono text-[11px] text-dim">
+              Set LLM_PROVIDER, LLM_API_KEY, LLM_MODEL, LLM_BASE_URL — or a vendor key. See .env.example.
+            </p>
+          </div>
+          {generator.data?.providers?.length ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="font-mono text-[11px] uppercase tracking-[0.12em] text-dim">
+                  <tr>
+                    <th className="py-2 pr-4 font-medium">Provider</th>
+                    <th className="py-2 pr-4 font-medium">Env</th>
+                    <th className="py-2 font-medium">Default model</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {generator.data.providers.map((p) => (
+                    <tr key={p.id} className="border-t border-border">
+                      <td className="py-2 pr-4">
+                        <span className={cn(generator.data?.provider === p.id && "text-fg")}>
+                          {p.label}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-4 font-mono text-[11px] text-muted">
+                        {p.needsKey ? p.keyEnvs[0] ?? "LLM_API_KEY" : "none (local)"}
+                      </td>
+                      <td className="py-2 font-mono text-[11px] text-muted">{p.defaultModel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
 
         <section className="mt-10">
           <h2 className="text-sm font-medium">Retrieval policy</h2>

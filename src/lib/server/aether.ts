@@ -11,6 +11,7 @@ import {
   searchEngine,
 } from "@/lib/rag/engine";
 import { GOLDEN_EVAL, runGoldenEval } from "@/lib/rag/evaluate";
+import { LLM_PROVIDERS, publicLlmStatus } from "@/lib/rag/llm";
 import type { CollectionId, MemoryItem } from "@/lib/rag/types";
 
 async function recordMetric(row: {
@@ -64,6 +65,10 @@ export const getOverview = createServerFn({ method: "GET" }).handler(async () =>
     /* empty */
   }
   return { stats, metrics };
+});
+
+export const getGeneratorStatus = createServerFn({ method: "GET" }).handler(async () => {
+  return { ...publicLlmStatus(), providers: LLM_PROVIDERS };
 });
 
 export const listDocs = createServerFn({ method: "GET" }).handler(async () => {

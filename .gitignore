@@ -13,6 +13,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.render.example
 
 # sandbox internals (not the Aether product)
 .grok/
@@ -37,4 +38,3 @@ screenshots/compliance-smoke*
 sdk/python/build/
 sdk/python/dist/
 sdk/go/cmd/aether/aether
-

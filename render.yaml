@@ -1,0 +1,71 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Render does not read a .toml file. This YAML is the deploy contract.
+#
+# Dashboard: New → Blueprint → pick prj1010/aether (this file).
+# Secrets with sync:false are typed once in the dashboard; never committed.
+
+previews:
+  generation: off
+
+services:
+  - type: web
+    name: aether
+    runtime: node
+    plan: starter
+    region: singapore
+    branch: main
+    autoDeployTrigger: commit
+    healthCheckPath: /
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node .output/server/index.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NITRO_PRESET
+        value: node-server
+      - key: HOST
+        value: "0.0.0.0"
+      - key: VITE_AUTH_ENABLED
+        value: "false"
+      - key: NODE_ENV
+        value: production
+
+      # Optional hosted Postgres. Leave empty → PGLite (reseeds Northstar on boot).
+      - key: DATABASE_URL
+        sync: false
+
+      # Generator — leave every key empty for extractive answers.
+      - key: LLM_PROVIDER
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: TOGETHER_API_KEY
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: AZURE_OPENAI_API_KEY
+        sync: false
+      - key: AZURE_OPENAI_ENDPOINT
+        sync: false
+      - key: AZURE_OPENAI_DEPLOYMENT
+        sync: false
+      - key: AZURE_OPENAI_API_VERSION
+        value: "2024-10-21"
+      - key: OLLAMA_HOST
+        sync: false

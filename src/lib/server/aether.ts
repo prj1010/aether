@@ -11,6 +11,15 @@ import {
   searchEngine,
 } from "@/lib/rag/engine";
 import { GOLDEN_EVAL, runGoldenEval } from "@/lib/rag/evaluate";
+import {
+  FRAMEWORKS,
+  POLICIES,
+  lastComplianceReport,
+  runCompliance,
+  NORTHSTAR_DECLARED,
+  COMPLIANCE_STEPS,
+  type FrameworkId,
+} from "@/lib/rag/compliance";
 import { LLM_PROVIDERS, publicLlmStatus } from "@/lib/rag/llm";
 import type { CollectionId, MemoryItem } from "@/lib/rag/types";
 
@@ -227,3 +236,33 @@ export const listRatings = createServerFn({ method: "GET" }).handler(async () =>
     return [];
   }
 });
+
+export const listComplianceCatalog = createServerFn({ method: "GET" }).handler(async () => {
+  const llm = publicLlmStatus();
+  return {
+    frameworks: FRAMEWORKS,
+    steps: COMPLIANCE_STEPS,
+    available: FRAMEWORKS.map((f) => f.id),
+    application: {
+      name: NORTHSTAR_DECLARED.applicationName,
+      modelName: llm.model,
+      modelVersion: "1.0",
+      purpose: NORTHSTAR_DECLARED.purpose,
+      operator: NORTHSTAR_DECLARED.operator,
+    },
+    policies: POLICIES.map((p) => ({
+      id: p.id,
+      framework: p.framework,
+      article: p.article,
+      title: p.title,
+      obligation: p.obligation,
+    })),
+    last: lastComplianceReport(),
+  };
+});
+
+export const runComplianceSuite = createServerFn({ method: "POST" })
+  .validator((input: { frameworks?: FrameworkId[] }) => input)
+  .handler(async ({ data }) => {
+    return runCompliance(data.frameworks);
+  });

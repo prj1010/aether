@@ -126,9 +126,9 @@ class Engine:
             apply_graph_boost(cands, set(chunk_ids), 0.25)
 
         cands = rerank(cands, query)
-        selected, citations, contradictions, confidence = assemble_context(cands, 8)
         if injection_flags:
-            selected = [s for s in selected if s.chunk.document_id != "doc-injection-bait"]
+            cands = [c for c in cands if c.chunk.document_id != "doc-injection-bait"]
+        selected, citations, contradictions, confidence = assemble_context(cands, 8)
         gen = generate_answer(query, selected, contradictions, memory_hits, confidence.band)
         refused = "couldn't find enough evidence" in gen["answer"].lower()
         return Answer(

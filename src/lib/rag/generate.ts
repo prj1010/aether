@@ -10,6 +10,7 @@ export interface GenerateInput {
   contradictions: Conflict[];
   memory: MemoryItem[];
   confidenceBand: string;
+  skipLlm?: boolean;
 }
 
 export interface GenerateOutput {
@@ -38,6 +39,10 @@ export async function generateAnswer(input: GenerateInput): Promise<GenerateOutp
         "Show the retrieval inspector for this query",
       ],
     };
+  }
+
+  if (input.skipLlm) {
+    return extractive(input, Date.now() - started);
   }
 
   const user = buildUserPrompt(input);

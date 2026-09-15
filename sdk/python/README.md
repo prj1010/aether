@@ -82,3 +82,36 @@ No key → extractive answers from retrieved chunks.
 | `engine.search(q, k)` | Ranked chunks |
 | `engine.ingest(title, text)` | Add a document |
 | `run_golden_eval()` | Recall / MRR on the golden suite |
+| `aether certify` | Compliance-as-code: EU AI Act, NIST AI RMF, operational policies |
+
+## Compliance (AICertify-shaped)
+
+Same five-step loop as AICertify, original Aether policies, live Northstar interactions. Does not pip-install `aicertify` and does not copy GOPAL Rego.
+
+```python
+from aether.certify import regulations, application
+
+regulations_set = regulations.create("my_regulations")
+print(regulations_set.list_available())
+regulations_set.add("eu_ai_act")
+regulations_set.add("nist_ai_rmf")
+regulations_set.add("operational")
+
+app = application.create(
+    name="Aether",
+    model_name="extractive",
+    model_version="1.0",
+    model_metadata={"purpose": "Northstar knowledge desk"},
+)
+
+report = app.evaluate(
+    regulations=regulations_set,
+    report_format="html",
+    output_dir="reports",
+)
+print(report)
+print(app.get_report())
+```
+
+CLI: `aether certify --format html --out reports`
+

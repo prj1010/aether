@@ -216,6 +216,8 @@ export async function askEngine(opts: {
   forcePath?: "fast" | "deep" | "adaptive";
   shardMode?: "adaptive" | "all";
   scope?: SecurityScope;
+  forceExtractive?: boolean;
+  recordTrace?: boolean;
 }): Promise<AnswerResult> {
   const tAll = Date.now();
   const engine = getEngine();
@@ -314,6 +316,11 @@ export async function askEngine(opts: {
   cands = rerank(cands, opts.query);
   t = mark("rerank", t, spans);
 
+  const queryInject = injectionFlags.length > 0;
+  if (queryInject) {
+    cands = cands.filter((c) => c.chunk.documentId !== "doc-injection-bait");
+  }
+
   const { selected, citations, contradictions, confidence } = assembleContext(cands, 8);
   t = mark("context.build", t, spans);
 
@@ -326,7 +333,6 @@ export async function askEngine(opts: {
     });
   }
 
-  const queryInject = injectionFlags.length > 0;
   const docFlags = selected.flatMap((s) =>
     scanInjection(s.chunk.content).map((f) => `${f}@${s.chunk.documentId}`),
   );
@@ -334,11 +340,12 @@ export async function askEngine(opts: {
 
   const gen = await generateAnswer({
     query: opts.query,
-    selected: queryInject ? selected.filter((s) => s.chunk.documentId !== "doc-injection-bait") : selected,
+    selected,
     citations,
     contradictions,
     memory: memoryHits,
     confidenceBand: confidence.band,
+    skipLlm: opts.forceExtractive,
   });
   mark("generation", t, spans);
 
@@ -381,8 +388,10 @@ export async function askEngine(opts: {
     createdAt: new Date().toISOString(),
     sharding,
   };
-  engine.traces.unshift(trace);
-  if (engine.traces.length > 80) engine.traces.length = 80;
+  if (opts.recordTrace !== false) {
+    engine.traces.unshift(trace);
+    if (engine.traces.length > 80) engine.traces.length = 80;
+  }
 
   return {
     answer: gen.answer,

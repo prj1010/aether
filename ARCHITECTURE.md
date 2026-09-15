@@ -17,7 +17,7 @@ This preview is the live engine. Typed SDKs live in `sdk/python` (`aether-rag`) 
 ## Layers
 
 ```
-UI (Ask, Knowledge, Inspector, Memory, Analytics, Eval)
+UI (Ask, Knowledge, Inspector, Memory, Analytics, Eval, Compliance)
         │
    server functions
         │
@@ -35,6 +35,24 @@ UI (Ask, Knowledge, Inspector, Memory, Analytics, Eval)
 ```
 
 Sharding is a routing and scaling layer around the existing engine. It does not replace ingestion, hybrid retrieval, LinearRAG, LogicRAG, MemPalace, or the APIs.
+
+## Compliance
+
+Compliance is an evidence layer around the same engine — not a second index. The loop matches AICertify’s five steps:
+
+1. **Create a regulations set** — named, listable.
+2. **Select targets** — `eu_ai_act`, `nist_ai_rmf`, `operational`.
+3. **Wrap the application** — Aether, generator name, version, metadata.
+4. **Evaluate** — live interactions (input + output from the Northstar index) plus declared organisation facts and measured retrieval evidence.
+5. **Get the report** — HTML, markdown, JSON.
+
+A **contract** splits facts an organisation must declare (intended use, human oversight, no social scoring) from facts the engine can **measure** (provenance on every chunk, golden recall vs baseline, injection flags, citation counts, shard ACL). Executable allow/deny policies then cover a Northstar-relevant slice of the EU AI Act, the NIST AI RMF functions, and operational OPA-style rules (citations required, untrusted evidence, memory isolation, no social scoring).
+
+Interactions are live asks, not canned Q&A: policy lookup, vacation lookup, an injection attempt, an out-of-corpus refuse, and a social-comparison probe. The Python SDK exposes the same five-step surface as `aether.certify.regulations` / `aether.certify.application`.
+
+The loop is inspired by [AICertify](https://github.com/Principled-Evolution/aicertify) (Apache-2.0) and GOPAL’s executable-policy idea. Policies are original Aether TypeScript (and a Python SDK port); GOPAL Rego is not copied and Open Policy Agent is not required at runtime. A passing report is evidence for this advisory knowledge desk. It is not CE marking, a notified-body assessment, or legal advice.
+
+
 
 ## Generator
 

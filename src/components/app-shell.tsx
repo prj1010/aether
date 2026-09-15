@@ -8,6 +8,7 @@ import {
   Menu,
   MessageSquare,
   Layers,
+  Scale,
   Settings,
   X,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const NAV = [
   { to: "/memory", label: "Memory", icon: Layers },
   { to: "/analytics", label: "Analytics", icon: Activity },
   { to: "/eval", label: "Evaluation", icon: FlaskConical },
+  { to: "/compliance", label: "Compliance", icon: Scale },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

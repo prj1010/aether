@@ -24,6 +24,9 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("eval", help="Run the golden retrieval suite")
     sub.add_parser("status", help="Show generator configuration (never prints keys)")
+    p_cert = sub.add_parser("certify", help="Evaluate Aether against EU AI Act, NIST AI RMF, and operational policies")
+    p_cert.add_argument("--format", choices=["html", "markdown", "json"], default="markdown")
+    p_cert.add_argument("--out", default=None, help="Directory to write the report")
 
     args = parser.parse_args(argv)
     if args.cmd == "status":
@@ -36,6 +39,26 @@ def main(argv: list[str] | None = None) -> int:
             mark = "ok" if r.hit else "miss"
             print(f"  [{mark}] {r.id}  {r.question}")
         return 0 if report.mrr >= 0.99 else 1
+    if args.cmd == "certify":
+        from .certify import application, regulations
+
+        regs = regulations.create("northstar")
+        regs.add("eu_ai_act")
+        regs.add("nist_ai_rmf")
+        regs.add("operational")
+        app = application.create(
+            name="Aether",
+            model_name=public_llm_status()["model"],
+            model_version="1.0",
+            model_metadata={"purpose": "Northstar knowledge desk"},
+        )
+        report = app.evaluate(regulations=regs, report_format=args.format, output_dir=args.out)
+        print(report)
+        for r in report.results:
+            print(f"  [{r.verdict:16}] {r.article:10} {r.title}")
+        if args.out:
+            print("Wrote", app.get_report().get(args.format))
+        return 0 if report.summary["deny"] == 0 else 1
 
     engine = Engine.northstar()
     q = " ".join(args.question)

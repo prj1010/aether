@@ -177,6 +177,14 @@ function SettingsPage() {
             Retrieved text is untrusted data. Prompt-injection in a vendor FAQ cannot override
             reimbursement or vacation policy.
           </p>
+          <p>
+            Compliance is a wrap around the same engine, following AICertify’s five-step loop:
+            create a regulations set, select EU AI Act / NIST AI RMF / operational targets, wrap
+            Aether as the application, evaluate live interactions, get an HTML report. Declared
+            facts (advisory use, human oversight, no social scoring) plus measured probes
+            (citations, injection isolation, recall vs baseline) are the contract. The policies
+            are original. A report is evidence, not a legal certification.
+          </p>
         </section>
       </PageCanvas>
     </AppShell>

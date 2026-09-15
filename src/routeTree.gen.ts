@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as ComplianceRouteImport } from './routes/compliance'
 import { Route as EvalRouteImport } from './routes/eval'
 import { Route as InspectorRouteImport } from './routes/inspector'
 import { Route as KnowledgeRouteImport } from './routes/knowledge'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComplianceRoute = ComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EvalRoute = EvalRouteImport.update({
@@ -56,6 +62,7 @@ const SettingsRoute = SettingsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/compliance': typeof ComplianceRoute
   '/eval': typeof EvalRoute
   '/inspector': typeof InspectorRoute
   '/knowledge': typeof KnowledgeRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/compliance': typeof ComplianceRoute
   '/eval': typeof EvalRoute
   '/inspector': typeof InspectorRoute
   '/knowledge': typeof KnowledgeRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/compliance': typeof ComplianceRoute
   '/eval': typeof EvalRoute
   '/inspector': typeof InspectorRoute
   '/knowledge': typeof KnowledgeRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analytics'
+    | '/compliance'
     | '/eval'
     | '/inspector'
     | '/knowledge'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/analytics'
+    | '/compliance'
     | '/eval'
     | '/inspector'
     | '/knowledge'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analytics'
+    | '/compliance'
     | '/eval'
     | '/inspector'
     | '/knowledge'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  ComplianceRoute: typeof ComplianceRoute
   EvalRoute: typeof EvalRoute
   InspectorRoute: typeof InspectorRoute
   KnowledgeRoute: typeof KnowledgeRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compliance': {
+      id: '/compliance'
+      path: '/compliance'
+      fullPath: '/compliance'
+      preLoaderRoute: typeof ComplianceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/eval': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  ComplianceRoute: ComplianceRoute,
   EvalRoute: EvalRoute,
   InspectorRoute: InspectorRoute,
   KnowledgeRoute: KnowledgeRoute,

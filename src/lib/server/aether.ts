@@ -112,6 +112,7 @@ export const askKnowledge = createServerFn({ method: "POST" })
       query: string;
       memory?: MemoryItem[];
       forcePath?: "fast" | "deep" | "adaptive";
+      shardMode?: "adaptive" | "all";
     }) => input,
   )
   .handler(async ({ data }) => {
@@ -119,6 +120,7 @@ export const askKnowledge = createServerFn({ method: "POST" })
       query: data.query.slice(0, 2000),
       memory: data.memory ?? [],
       forcePath: data.forcePath ?? "adaptive",
+      shardMode: data.shardMode ?? "adaptive",
     });
     await recordMetric({
       id: result.trace.id,

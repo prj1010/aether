@@ -10,6 +10,7 @@ export const Route = createFileRoute("/inspector")({ component: InspectorPage })
 function InspectorPage() {
   const last = useAether((s) => s.lastTrace);
   const traces = useAether((s) => s.traces);
+  const sharding = last?.sharding;
 
   return (
     <AppShell>
@@ -17,8 +18,8 @@ function InspectorPage() {
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Retrieval</p>
         <h1 className="mt-2 font-display text-3xl italic">Inspector</h1>
         <p className="mt-2 max-w-xl text-sm text-muted">
-          Every ask records classification, strategy, candidate scores, graph hops, and generation
-          cost. Nothing in this view is guessed.
+          Every ask records classification, shard routing, candidate scores, graph hops, and
+          generation cost. Nothing in this view is guessed.
         </p>
 
         {!last ? (
@@ -52,6 +53,86 @@ function InspectorPage() {
                 </ol>
               ) : null}
             </section>
+
+            {sharding ? (
+              <section>
+                <h2 className="text-sm font-medium">Shard routing</h2>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge variant={sharding.mode === "all" ? "deep" : "fast"}>{sharding.mode}</Badge>
+                  <Badge>{sharding.searched.length} searched</Badge>
+                  {sharding.expanded ? <Badge variant="warn">expanded ×{sharding.expansionRounds}</Badge> : null}
+                  {sharding.cacheHit ? <Badge variant="ok">cache hit</Badge> : <Badge>cache miss</Badge>}
+                  {sharding.merge.rrf ? (
+                    <Badge>
+                      RRF {sharding.merge.inputs}→{sharding.merge.unique}
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-sm text-muted">
+                  ACL first, then weighted collection profiles. Retrieval starts on 1–3 shards and
+                  expands only if evidence is thin. Memory is never mixed into these indexes.
+                </p>
+                <ul className="mt-4 space-y-3">
+                  {sharding.routed.map((r) => {
+                    const searched = sharding.searched.includes(r.shardId);
+                    return (
+                      <li key={r.shardId} className="grid grid-cols-[minmax(0,1fr)_4rem] items-center gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span className="font-mono text-xs text-fg">{r.shardId}</span>
+                            <span className="font-mono text-[11px] text-dim">
+                              {searched ? "searched" : "ranked"}
+                            </span>
+                          </div>
+                          {r.reasons.length ? (
+                            <div className="mt-1 text-[11px] text-muted">{r.reasons.join(" · ")}</div>
+                          ) : null}
+                          <Progress className="mt-2" value={Math.min(100, r.score * 100)} />
+                        </div>
+                        <span className="text-right font-mono text-[11px] tabular-nums text-accent">
+                          {r.score.toFixed(2)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {sharding.skipped.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-dim">Skipped</p>
+                    <ul className="mt-2 space-y-1">
+                      {sharding.skipped.map((s) => (
+                        <li key={s.shardId} className="flex justify-between gap-3 font-mono text-[11px] text-muted">
+                          <span>{s.shardId}</span>
+                          <span className="text-dim">{s.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {sharding.crossShardEntities.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-dim">
+                      Cross-shard entities
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {sharding.crossShardEntities.map((e) => (
+                        <Badge key={e}>{e}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {sharding.failures.length > 0 ? (
+                  <div className="mt-4 rounded-lg border border-danger/30 bg-danger/8 px-4 py-3 text-sm">
+                    <div className="mb-1 text-xs font-medium uppercase tracking-wider text-danger">
+                      Shard failures
+                    </div>
+                    <p className="text-muted">
+                      Continued on authorized shards. Confidence reduced. {sharding.failures.join(" · ")}
+                    </p>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
             <section>
               <h2 className="text-sm font-medium">Timing</h2>
@@ -87,10 +168,11 @@ function InspectorPage() {
             <section>
               <h2 className="text-sm font-medium">Candidates</h2>
               <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
+                <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="font-mono text-[10px] uppercase tracking-wider text-dim">
                     <tr>
                       <th className="py-2 font-medium">Source</th>
+                      <th className="py-2 font-medium">Shard</th>
                       <th className="py-2 font-medium">Sparse</th>
                       <th className="py-2 font-medium">Dense</th>
                       <th className="py-2 font-medium">Hybrid</th>
@@ -106,6 +188,9 @@ function InspectorPage() {
                           <div className="font-mono text-[11px] text-dim">
                             {c.section} · p.{c.page}
                           </div>
+                        </td>
+                        <td className="pr-3 font-mono text-[11px] text-muted">
+                          {c.shardId ? c.shardId.replace(/^northstar\./, "") : "—"}
                         </td>
                         <td className="tabular-nums text-muted">{c.sparse.toFixed(2)}</td>
                         <td className="tabular-nums text-muted">{c.dense.toFixed(2)}</td>
@@ -169,7 +254,8 @@ function InspectorPage() {
                 <li key={t.id} className="flex items-baseline justify-between gap-4 py-2.5 text-sm">
                   <span className="min-w-0 truncate text-muted">{t.query}</span>
                   <span className="shrink-0 font-mono text-[11px] text-dim">
-                    {t.plan.path} · {formatPct(t.confidence.score)}
+                    {t.plan.path}
+                    {t.sharding ? ` · ${t.sharding.searched.length} shards` : ""} · {formatPct(t.confidence.score)}
                   </span>
                 </li>
               ))}

@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { AppShell } from "@/components/app-shell";
+import { Badge } from "@/components/ui/badge";
 import { getOverview, listTraces } from "@/lib/server/aether";
 import { useAether } from "@/lib/store";
 import { formatMs, formatPct } from "@/lib/utils";
@@ -24,6 +25,7 @@ function AnalyticsPage() {
   const stats = overview.data?.stats;
   const metrics = overview.data?.metrics;
   const traces = local.length ? local : (serverTraces.data ?? []);
+  const shards = stats?.shards ?? [];
 
   const pathMix = [
     { name: "Fast", n: traces.filter((t) => t.plan.path === "fast").length },
@@ -32,6 +34,13 @@ function AnalyticsPage() {
   const kindMix = ["factual", "semantic", "exact", "multi_hop", "temporal", "memory", "ambiguous"].map(
     (k) => ({ name: k.replace("_", " "), n: traces.filter((t) => t.plan.kind === k).length }),
   );
+  const sharded = traces.filter((t) => t.sharding);
+  const meanFanout = sharded.length
+    ? sharded.reduce((s, t) => s + (t.sharding?.searched.length ?? 0), 0) / sharded.length
+    : 0;
+  const expandRate = sharded.length
+    ? sharded.filter((t) => t.sharding?.expanded).length / sharded.length
+    : 0;
 
   return (
     <AppShell>
@@ -39,7 +48,7 @@ function AnalyticsPage() {
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Observability</p>
         <h1 className="mt-2 font-display text-3xl italic">Analytics</h1>
         <p className="mt-2 max-w-xl text-sm text-muted">
-          Latency, path mix, and confidence. Document text is never stored in this view.
+          Latency, path mix, shard fan-out, and confidence. Document text is never stored in this view.
         </p>
 
         <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -51,7 +60,44 @@ function AnalyticsPage() {
           <Stat label="p95" value={metrics?.p95 ? formatMs(metrics.p95) : "—"} />
           <Stat label="Mean confidence" value={metrics ? formatPct(metrics.meanConfidence) : "—"} />
           <Stat label="LLM share" value={metrics ? formatPct(metrics.llmShare) : "—"} />
+          <Stat label="Shards" value={String(shards.length || "—")} />
+          <Stat label="Partition" value={stats?.shardMode ?? "—"} />
+          <Stat label="Mean fan-out" value={sharded.length ? meanFanout.toFixed(1) : "—"} />
+          <Stat label="Expand rate" value={sharded.length ? formatPct(expandRate) : "—"} />
         </div>
+
+        {shards.length > 0 ? (
+          <section className="mt-10">
+            <h2 className="text-sm font-medium">Collection shards</h2>
+            <p className="mt-2 max-w-xl text-sm text-muted">
+              Mini-indexes: BM25, embeddings, graph, and provenance per collection. Hash split only
+              if a collection grows past the size threshold.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {shards.map((s) => (
+                <div key={s.id} className="rounded-xl bg-surface px-4 py-4 shadow-[var(--shadow-border)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] text-muted">{s.id}</span>
+                    <Badge variant={s.status === "healthy" ? "ok" : s.status === "degraded" ? "warn" : "danger"}>
+                      {s.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 font-display text-xl italic capitalize">{s.domain}</div>
+                  <div className="mt-2 font-mono text-[11px] text-dim">
+                    {s.docs} doc{s.docs === 1 ? "" : "s"} · {s.chunks} chunk{s.chunks === 1 ? "" : "s"} · health {Math.round(s.health * 100)}%
+                  </div>
+                  {s.keywords?.length ? (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {s.keywords.slice(0, 5).map((k) => (
+                        <Badge key={k}>{k}</Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <div className="mt-10 grid gap-8 md:grid-cols-2">
           <ChartCard title="Path mix">

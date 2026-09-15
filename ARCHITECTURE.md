@@ -21,9 +21,11 @@ UI (Ask, Knowledge, Inspector, Memory, Analytics, Eval)
         │
    server functions
         │
-   Orchestrator  ── Memory palace (L0–L3)
+   Orchestrator  ── Memory palace (L0–L3)   ← separate from document shards
         │
    Query plan (cheap rules; deep path only when needed)
+        │
+   ACL  →  Shard router  →  parallel mini-indexes  →  RRF merge
         │
    Retrieval: sparse BM25 · hashed dense · hybrid · graph expansion
         │
@@ -31,6 +33,8 @@ UI (Ask, Knowledge, Inspector, Memory, Analytics, Eval)
         │
    Generator (pluggable LLM · extractive fallback) with untrusted-document boundary
 ```
+
+Sharding is a routing and scaling layer around the existing engine. It does not replace ingestion, hybrid retrieval, LinearRAG, LogicRAG, MemPalace, or the APIs.
 
 ## Generator
 
@@ -43,13 +47,39 @@ UI (Ask, Knowledge, Inspector, Memory, Analytics, Eval)
 - Memory cues → palace search mixed into context
 - Exact codes (`SEV-1`, quoted titles) → sparse-heavy
 
+## Sharding
+
+Northstar is partitioned **tenant → collection**. A corpus smaller than eight documents, or a single collection, stays one shard. Hash sharding is only a load-balance fallback when a collection exceeds 800 chunks or when routing has no metadata/entity signal.
+
+Each shard is a mini-index: chunks, hashed embeddings, BM25, entity–chunk graph, provenance, and a compact profile (centroid, keywords, entities, time range). Status is `healthy | degraded | offline | rebuilding | migrating`. Replicas are chosen independently after shard selection; they are not extra shards.
+
+### Router
+
+Security constraints are absolute. Scoring then weights:
+
+| Signal | Weight |
+|---|---|
+| Semantic profile | 0.28 |
+| Metadata / domain | 0.18 |
+| Entities | 0.18 |
+| Temporal window | 0.10 |
+| Freshness | 0.08 |
+| Historical hits | 0.10 |
+| Health | 0.08 |
+
+Adaptive mode starts with 1–3 shards. Evidence is judged from rerank scores, density, and source spread — never from router confidence alone. If evidence is thin, the router expands by two shards per round, then falls back to every authorized shard. LogicRAG independently routes each sub-question and unions the sets. LinearRAG walks graphs only on searched shards, with targeted cross-shard entity hops. Memory is never mixed into document shards.
+
+Parallel hits are **fused with reciprocal rank fusion** (k=60), then the existing global reranker. Failed shards are skipped, confidence is reduced, and the failure is recorded on the trace.
+
+Routing is cached on `tenant + collections + normalized query + mode + index version + config version` and dropped on ingest.
+
 ## Security
 
-Retrieved chunks are wrapped as untrusted data. Injection patterns are flagged. Unauthorized or bait documents cannot override system policy. Authorization before context is the production rule; this preview corpus is a shared office demo without accounts.
+Retrieved chunks are wrapped as untrusted data. Injection patterns are flagged. Unauthorized or bait documents cannot override system policy. Authorization before context is the production rule; this preview corpus is a shared office demo without accounts. Shard ACL filters tenant, collection, classification, and lifecycle before any retrieval.
 
 ## Observability
 
-Every ask writes a trace: classification, timings, candidate scores, graph seeds, generation tokens. Analytics never logs raw document text.
+Every ask writes a trace: classification, shard routing, timings, candidate scores, graph seeds, generation tokens. Analytics never logs raw document text. Evaluation reports sharded Recall@k / MRR against the unsharded baseline; routing is not allowed to drop recall.
 
 ## Attribution
 

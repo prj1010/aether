@@ -25,6 +25,7 @@ function AskPage() {
   const messages = useAether((s) => s.messages);
   const asking = useAether((s) => s.asking);
   const forcePath = useAether((s) => s.forcePath);
+  const shardMode = useAether((s) => s.shardMode);
   const memory = useAether((s) => s.memory);
   const pushUser = useAether((s) => s.pushUser);
   const pushAssistant = useAether((s) => s.pushAssistant);
@@ -45,7 +46,7 @@ function AskPage() {
     setAsking(true);
     try {
       const result = await askKnowledge({
-        data: { query, memory, forcePath },
+        data: { query, memory, forcePath, shardMode },
       });
       pushAssistant(result);
     } catch (err) {
@@ -134,6 +135,11 @@ function AskPage() {
                           }
                         >
                           {m.confidence.band} · {formatPct(m.confidence.score)}
+                        </Badge>
+                      ) : null}
+                      {m.shardCount ? (
+                        <Badge>
+                          {m.shardCount} shard{m.shardCount === 1 ? "" : "s"}
                         </Badge>
                       ) : null}
                       {m.latencyMs ? (
@@ -229,7 +235,7 @@ function AskPage() {
             </Button>
           </div>
           <p className="mx-auto mt-2 max-w-3xl px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-dim">
-            Adaptive · {forcePath} · citations required · untrusted evidence
+            Adaptive · {forcePath} · shards {shardMode} · citations required · untrusted evidence
           </p>
         </form>
       </div>
@@ -275,7 +281,7 @@ function Thinking() {
         <span className="relative inline-flex size-2 rounded-full bg-accent" />
       </span>
       <span className="font-mono text-xs uppercase tracking-[0.16em]">
-        Classify · retrieve · rerank · generate
+        Classify · route shards · retrieve · rerank · generate
       </span>
     </div>
   );

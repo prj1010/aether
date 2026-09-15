@@ -27,9 +27,24 @@ const PATHS = [
   },
 ];
 
+const SHARDS = [
+  {
+    id: "adaptive" as const,
+    title: "Adaptive shards",
+    body: "Route to 1–3 collection shards, then expand if evidence is thin. Worst case: every authorized shard. The default.",
+  },
+  {
+    id: "all" as const,
+    title: "All shards",
+    body: "Search every authorized shard on every ask. Same recall as the unsharded index, more retrieval work.",
+  },
+];
+
 function SettingsPage() {
   const forcePath = useAether((s) => s.forcePath);
   const setForcePath = useAether((s) => s.setForcePath);
+  const shardMode = useAether((s) => s.shardMode);
+  const setShardMode = useAether((s) => s.setShardMode);
   const clearChat = useAether((s) => s.clearChat);
   const generator = useQuery({ queryKey: ["generator"], queryFn: () => getGeneratorStatus() });
 
@@ -112,6 +127,30 @@ function SettingsPage() {
         </section>
 
         <section className="mt-10">
+          <h2 className="text-sm font-medium">Shard routing</h2>
+          <p className="mt-2 text-sm text-muted">
+            Shards are a routing layer around the existing index — not a replacement for hybrid
+            retrieval, the entity graph, or memory.
+          </p>
+          <div className="mt-4 grid gap-3">
+            {SHARDS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setShardMode(p.id)}
+                className={cn(
+                  "rounded-xl p-4 text-left shadow-[var(--shadow-border)] transition-colors",
+                  shardMode === p.id ? "bg-elevated" : "bg-surface hover:bg-elevated/50",
+                )}
+              >
+                <div className="text-sm font-medium">{p.title}</div>
+                <p className="mt-1 text-sm text-muted">{p.body}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-10">
           <h2 className="text-sm font-medium">Session</h2>
           <Button className="mt-4" variant="secondary" onClick={clearChat}>
             Clear conversation
@@ -125,6 +164,12 @@ function SettingsPage() {
             cheap rerank. Multi-hop and temporal questions — “what was adopted after Helios moved to
             Nimbus” — open a relation-free entity graph and a dependency plan. Memory is a palace,
             not a second index of the documents.
+          </p>
+          <p>
+            The shard router scores collection profiles (ACL, metadata, entities, time, health) and
+            retrieves in parallel. Results fuse with reciprocal rank fusion before the existing
+            reranker. LinearRAG walks only searched shards, with targeted cross-shard entity hops.
+            LogicRAG routes each sub-question independently.
           </p>
           <p>
             LinearRAG (ICLR’26) inspired entity–sentence linking without LLM graph construction.

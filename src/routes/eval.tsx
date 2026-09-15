@@ -26,27 +26,45 @@ function EvalPage() {
     onSuccess: () => ratings.refetch(),
   });
 
+  const shardedOk = run.data ? run.data.recallAt5 >= (run.data.baseline?.recallAt5 ?? 0) - 0.001 : false;
+
   return (
     <AppShell>
       <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Quality</p>
         <h1 className="mt-2 font-display text-3xl italic">Evaluation</h1>
         <p className="mt-2 max-w-xl text-sm text-muted">
-          Retrieval is scored independently of generation. Recall and MRR use expected source
-          documents from the Northstar golden set.
+          Retrieval is scored independently of generation. Sharded routing is compared against the
+          unsharded global index so recall is not silently lost.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Button onClick={() => run.mutate()} disabled={run.isPending}>
             {run.isPending ? "Running suite…" : "Run golden suite"}
           </Button>
-          {run.data ? (
-            <span className="font-mono text-xs text-muted">
-              Recall@k {formatPct(run.data.recallAt5)} · MRR {run.data.mrr.toFixed(2)} ·{" "}
-              {formatMs(run.data.meanLatency)}
-            </span>
-          ) : null}
         </div>
+
+        {run.data ? (
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-surface px-4 py-4 shadow-[var(--shadow-border)]">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-dim">Sharded</span>
+                <Badge variant={shardedOk ? "ok" : "danger"}>{shardedOk ? "holds recall" : "below baseline"}</Badge>
+              </div>
+              <p className="mt-2 font-mono text-sm text-fg">
+                Recall@k {formatPct(run.data.recallAt5)} · MRR {run.data.mrr.toFixed(2)} ·{" "}
+                {formatMs(run.data.meanLatency)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-surface px-4 py-4 shadow-[var(--shadow-border)]">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-dim">Unsharded baseline</div>
+              <p className="mt-2 font-mono text-sm text-muted">
+                Recall@k {formatPct(run.data.baseline.recallAt5)} · MRR {run.data.baseline.mrr.toFixed(2)} ·{" "}
+                {formatMs(run.data.baseline.meanLatency)}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {run.data ? (
           <div className="mt-6 overflow-x-auto">

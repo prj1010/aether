@@ -95,6 +95,7 @@ export interface Candidate {
   graph: number;
   rerank: number;
   reasons: string[];
+  shardId?: string;
 }
 
 export interface SubQuestion {
@@ -147,6 +148,7 @@ export interface RetrievalTrace {
     graph: number;
     rerank: number;
     reasons: string[];
+    shardId?: string;
   }[];
   graph: {
     seeds: string[];
@@ -167,6 +169,22 @@ export interface RetrievalTrace {
   };
   injectionFlags: string[];
   createdAt: string;
+  sharding?: {
+    routed: {
+      shardId: string;
+      score: number;
+      reasons: string[];
+    }[];
+    searched: string[];
+    expanded: boolean;
+    expansionRounds: number;
+    skipped: { shardId: string; reason: string }[];
+    merge: { inputs: number; unique: number; rrf: boolean };
+    cacheHit: boolean;
+    crossShardEntities: string[];
+    failures: string[];
+    mode: "adaptive" | "all" | "single";
+  };
 }
 
 export interface AnswerResult {

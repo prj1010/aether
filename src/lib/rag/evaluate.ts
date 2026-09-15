@@ -8,11 +8,28 @@ export async function runGoldenEval(): Promise<{
   recallAt5: number;
   mrr: number;
   meanLatency: number;
+  baseline: { recallAt5: number; mrr: number; meanLatency: number };
 }> {
+  const results = runSuite("adaptive");
+  const base = runSuite("baseline");
+  return {
+    results,
+    recallAt5: mean(results.map((r) => r.recallAt5)),
+    mrr: mean(results.map((r) => r.reciprocalRank)),
+    meanLatency: mean(results.map((r) => r.latencyMs)),
+    baseline: {
+      recallAt5: mean(base.map((r) => r.recallAt5)),
+      mrr: mean(base.map((r) => r.reciprocalRank)),
+      meanLatency: mean(base.map((r) => r.latencyMs)),
+    },
+  };
+}
+
+function runSuite(mode: "adaptive" | "baseline"): EvalRunResult[] {
   const results: EvalRunResult[] = [];
   for (const ex of GOLDEN_EVAL) {
     const t0 = Date.now();
-    const hits = searchEngine(ex.question, 8);
+    const hits = searchEngine(ex.question, 8, mode);
     const predicted = unique(hits.map((h) => h.documentId));
     const ranks = ex.expectedSources.map((src) => predicted.indexOf(src)).filter((i) => i >= 0);
     const best = ranks.length ? Math.min(...ranks) : -1;
@@ -33,10 +50,7 @@ export async function runGoldenEval(): Promise<{
       confidence: hits[0]?.score ?? 0,
     });
   }
-  const recallAt5 = mean(results.map((r) => r.recallAt5));
-  const mrr = mean(results.map((r) => r.reciprocalRank));
-  const meanLatency = mean(results.map((r) => r.latencyMs));
-  return { results, recallAt5, mrr, meanLatency };
+  return results;
 }
 
 function unique(xs: string[]): string[] {

@@ -21,6 +21,7 @@ export interface ChatMessage {
   refused?: boolean;
   contradictions?: AnswerResult["contradictions"];
   traceId?: string;
+  shardCount?: number;
   createdAt: number;
 }
 
@@ -53,9 +54,11 @@ interface AetherState {
   traces: RetrievalTrace[];
   memory: MemoryItem[];
   forcePath: "adaptive" | "fast" | "deep";
+  shardMode: "adaptive" | "all";
   asking: boolean;
   activeCitation: Citation | null;
   setForcePath: (p: AetherState["forcePath"]) => void;
+  setShardMode: (m: AetherState["shardMode"]) => void;
   setAsking: (v: boolean) => void;
   setActiveCitation: (c: Citation | null) => void;
   pushUser: (content: string) => string;
@@ -70,9 +73,11 @@ export const useAether = create<AetherState>((set) => ({
   traces: [],
   memory: SEED_MEMORY,
   forcePath: "adaptive",
+  shardMode: "adaptive",
   asking: false,
   activeCitation: null,
   setForcePath: (forcePath) => set({ forcePath }),
+  setShardMode: (shardMode) => set({ shardMode }),
   setAsking: (asking) => set({ asking }),
   setActiveCitation: (activeCitation) => set({ activeCitation }),
   pushUser: (content) => {
@@ -124,6 +129,7 @@ export const useAether = create<AetherState>((set) => ({
           refused: result.refused,
           contradictions: result.contradictions,
           traceId: result.trace.id,
+          shardCount: result.trace.sharding?.searched.length,
           createdAt: Date.now(),
         },
       ],

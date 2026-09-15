@@ -11,7 +11,7 @@ services:
   - type: web
     name: aether
     runtime: node
-    plan: starter
+    plan: free
     region: singapore
     branch: main
     autoDeployTrigger: commit

@@ -38,6 +38,27 @@ A tagged / branch pin:
 pip install "git+https://github.com/prj1010/aether.git@main#subdirectory=sdk/python"
 ```
 
+## Colab
+
+Colab caches the previous `aether-rag` install. If `list_available()` raises `TypeError: string indices must be integers`, the kernel still has **0.1.0**. Reinstall **0.1.1+**, drop the old module from `sys.modules`, then re-run. Do not skip the uninstall / `--no-cache-dir` flags.
+
+```python
+%pip uninstall -y aether-rag
+%pip install --upgrade --force-reinstall --no-cache-dir \
+  "git+https://github.com/prj1010/aether.git@main#subdirectory=sdk/python"
+
+import sys
+for _m in [m for m in sys.modules if m == "aether" or m.startswith("aether.")]:
+    del sys.modules[_m]
+
+import aether
+from aether.certify import regulations
+print("aether", aether.__version__)  # expect 0.1.1+
+print(regulations.create("northstar").list_available())
+```
+
+Then the five-step certify cell.
+
 ## CLI
 
 After install:

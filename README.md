@@ -33,6 +33,8 @@ answer = engine.ask("What is our certification reimbursement policy?")
 print(answer.text, answer.citations)
 ```
 
+**Colab:** `%pip` caches the previous `aether-rag` wheel. After a GitHub update, uninstall and reinstall with `--force-reinstall --no-cache-dir`, or you will keep `list_available()` returning strings (`TypeError: string indices must be integers`). See [`sdk/python/README.md`](sdk/python/README.md#colab).
+
 See [`sdk/python/README.md`](sdk/python/README.md).
 
 ### Go

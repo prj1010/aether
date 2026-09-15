@@ -1,11 +1,18 @@
 from aether.certify import application, regulations
+import aether
+
+
+def test_version_is_current():
+    assert aether.__version__ == "0.1.1"
 
 
 def test_five_step_loop_allows_northstar():
     regs = regulations.create("my_regulations")
-    ids = [r["id"] for r in regs.list_available()]
+    available = regs.list_available()
+    assert available and isinstance(available[0], dict)
+    ids = [r["id"] for r in available]
     assert "eu_ai_act" in ids
-    assert all("title" in r and "kicker" in r for r in regs.list_available())
+    assert all("title" in r and "kicker" in r for r in available)
     regs.add("eu_ai_act")
     regs.add("nist_ai_rmf")
     regs.add("operational")

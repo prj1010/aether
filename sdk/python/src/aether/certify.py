@@ -55,7 +55,11 @@ class RegulationSet:
         self._ids: list[str] = []
 
     def list_available(self) -> list[dict]:
-        return [dict(f) for f in FRAMEWORKS]
+        """Return regulation objects: ``[{"id", "title", "kicker"}, ...]``.
+
+        Never returns bare strings — ``r["id"]`` is always valid.
+        """
+        return [{"id": f["id"], "title": f["title"], "kicker": f["kicker"]} for f in FRAMEWORKS]
 
     def add(self, regulation_id: str) -> RegulationSet:
         if regulation_id not in AVAILABLE:

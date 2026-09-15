@@ -22,4 +22,4 @@ __all__ = [
     "resolve_llm_config",
     "run_golden_eval",
 ]
-__version__ = "0.1.0"
+__version__ = "0.1.1"

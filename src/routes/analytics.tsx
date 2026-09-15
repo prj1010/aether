@@ -63,7 +63,7 @@ function AnalyticsPage() {
     <AppShell>
       <PageCanvas>
         <PageHeader
-          kicker="Observability"
+          kicker="Operations"
           title="Analytics"
           description="Latency, path mix, shard fan-out, and confidence. Document text is never stored in this view."
         />

@@ -97,7 +97,9 @@ Retrieved chunks are wrapped as untrusted data. Injection patterns are flagged. 
 
 ## Observability
 
-Every ask writes a trace: classification, shard routing, timings, candidate scores, graph seeds, generation tokens. Analytics never logs raw document text. Evaluation reports sharded Recall@k / MRR against the unsharded baseline; routing is not allowed to drop recall.
+Every ask writes a retrieval trace (classification, shard routing, timings, candidate scores, graph seeds, generation tokens) and an OpenTelemetry span tree (`aether.ask` plus child spans for classify, retrieve, rerank, generate). Ingest and compliance evaluation emit `aether.ingest` and `aether.compliance.evaluate`. Analytics never logs raw document text. Evaluation reports sharded Recall@k / MRR against the unsharded baseline; routing is not allowed to drop recall.
+
+Spans live in an in-process ring and export over OTLP/HTTP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Metrics: `aether.ask.duration`, `aether.ask.count`, `aether.ask.tokens`, `aether.ingest.count`, `aether.error.count`.
 
 ## Attribution
 

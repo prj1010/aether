@@ -25,28 +25,7 @@ export interface ChatMessage {
   createdAt: number;
 }
 
-const SEED_MEMORY: MemoryItem[] = [
-  {
-    id: "m-l0",
-    layer: "L0",
-    wing: "identity",
-    room: "self",
-    closet: "role",
-    content: "Knowledge worker at Northstar Systems. Prefers concise answers with citations.",
-    createdAt: new Date().toISOString(),
-    lastAccess: new Date().toISOString(),
-  },
-  {
-    id: "m-l1",
-    layer: "L1",
-    wing: "story",
-    room: "now",
-    closet: "brief",
-    content: "Evaluating Aether as the office knowledge engine against policy and architecture corpora.",
-    createdAt: new Date().toISOString(),
-    lastAccess: new Date().toISOString(),
-  },
-];
+const SEED_MEMORY: MemoryItem[] = [];
 
 interface AetherState {
   messages: ChatMessage[];

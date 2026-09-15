@@ -119,9 +119,10 @@ export function ingestPlainText(input: {
   collection: DocumentRecord["collection"];
   text: string;
   author?: string;
+  id?: string;
 }): { document: DocumentRecord; chunks: IndexedChunk[] } {
   const now = new Date().toISOString();
-  const id = `doc-user-${contentHash(input.title + now).slice(0, 10)}`;
+  const id = input.id || `doc-user-${contentHash(input.title + now).slice(0, 10)}`;
   const document: DocumentRecord = {
     id,
     title: input.title,

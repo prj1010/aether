@@ -1,6 +1,6 @@
 import type { Candidate, Citation, Conflict, MemoryItem } from "./types";
 import { completeChat } from "./llm";
-import { SYSTEM_PROMPT, wrapUntrusted } from "./security";
+import { getActiveSystemPrompt, wrapUntrusted } from "./security";
 import { snippet } from "./text";
 
 export interface GenerateInput {
@@ -11,6 +11,7 @@ export interface GenerateInput {
   memory: MemoryItem[];
   confidenceBand: string;
   skipLlm?: boolean;
+  systemPrompt?: string;
 }
 
 export interface GenerateOutput {
@@ -47,7 +48,7 @@ export async function generateAnswer(input: GenerateInput): Promise<GenerateOutp
 
   const user = buildUserPrompt(input);
   const llm = await completeChat({
-    system: SYSTEM_PROMPT,
+    system: input.systemPrompt || getActiveSystemPrompt(),
     user,
     temperature: 0.1,
     maxTokens: 700,

@@ -8,6 +8,7 @@ import { NORTHSTAR_DECLARED, systemPromptRequiresCitations, untrustedBoundaryPre
 import { policiesFor } from "./policies";
 import { renderHtml, renderJson, renderMarkdown } from "./report";
 import { regulations, type RegulationSet } from "./regulations";
+import { withSpan } from "../../otel/instrument";
 import type {
   ComplianceContract,
   ComplianceReport,
@@ -205,6 +206,17 @@ export async function runCompliance(
 }
 
 export async function evaluateSet(
+  set: RegulationSet,
+  application?: ComplianceContract["application"],
+): Promise<ComplianceReport> {
+  return withSpan(
+    "aether.compliance.evaluate",
+    { "aether.compliance.set": set.name ?? "northstar" },
+    () => evaluateSetInner(set, application),
+  );
+}
+
+async function evaluateSetInner(
   set: RegulationSet,
   application?: ComplianceContract["application"],
 ): Promise<ComplianceReport> {

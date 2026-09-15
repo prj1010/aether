@@ -29,6 +29,8 @@ services:
         value: "false"
       - key: NODE_ENV
         value: production
+      - key: OTEL_SERVICE_NAME
+        value: aether
 
       # Optional hosted Postgres. Leave empty → PGLite (reseeds Northstar on boot).
       - key: DATABASE_URL
@@ -68,4 +70,10 @@ services:
       - key: AZURE_OPENAI_API_VERSION
         value: "2024-10-21"
       - key: OLLAMA_HOST
+        sync: false
+
+      # OpenTelemetry OTLP/HTTP. Empty → in-process span ring only.
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
         sync: false

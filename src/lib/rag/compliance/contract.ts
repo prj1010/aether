@@ -1,4 +1,4 @@
-import { SYSTEM_PROMPT } from "../security";
+import { getActiveSystemPrompt } from "../security";
 import type { DeclaredFacts } from "./types";
 
 /** Organisation facts about this desk. Evaluators cannot observe these. */
@@ -20,9 +20,9 @@ export const NORTHSTAR_DECLARED: DeclaredFacts = {
 };
 
 export function untrustedBoundaryPresent(): boolean {
-  return /untrusted data/i.test(SYSTEM_PROMPT);
+  return /untrusted data/i.test(getActiveSystemPrompt());
 }
 
 export function systemPromptRequiresCitations(): boolean {
-  return /cite every factual claim/i.test(SYSTEM_PROMPT);
+  return /cite every factual claim/i.test(getActiveSystemPrompt());
 }

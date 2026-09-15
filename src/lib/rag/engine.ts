@@ -17,6 +17,9 @@ import { applyGraphBoost, hybridCandidates, rerank } from "./rerank";
 import { scanInjection } from "./security";
 import { bm25Search, buildBm25, type Bm25Index } from "./sparse";
 import { tokenize } from "./text";
+import { withSpan, childSpan, activeTraceId } from "../otel/instrument";
+import { getInstruments } from "../otel/sdk";
+import type { Span } from "@opentelemetry/api";
 import {
   DEFAULT_BUDGETS,
   DEFAULT_SCOPE,
@@ -82,9 +85,22 @@ export function addDocumentToEngine(input: {
   filename: string;
   collection: DocumentRecord["collection"];
   text: string;
+  id?: string;
 }): { document: DocumentRecord; chunkCount: number } {
   const engine = getEngine();
+  if (input.id) {
+    const existing = engine.documents.find((d) => d.id === input.id);
+    if (existing) {
+      return {
+        document: existing,
+        chunkCount: engine.chunks.filter((c) => c.documentId === input.id).length,
+      };
+    }
+  }
   const { document, chunks } = ingestPlainText(input);
+  if (!chunks.length) {
+    throw new Error("Nothing to index — the file had no extractable text.");
+  }
   const documents = [...engine.documents, document];
   const allChunks = [...engine.chunks, ...chunks];
   const traces = engine.traces;
@@ -93,12 +109,26 @@ export function addDocumentToEngine(input: {
   next.shards.indexVersion = engine.shards.indexVersion + 1;
   invalidateRoutingCache();
   globalRef.__aetherEngine__ = next;
+  void withSpan(
+    "aether.ingest",
+    {
+      "aether.doc.id": document.id,
+      "aether.doc.collection": document.collection,
+      "aether.doc.filename": document.filename,
+      "aether.doc.chunks": chunks.length,
+    },
+    async (span) => {
+      span.setAttribute("aether.doc.title", document.title.slice(0, 160));
+      getInstruments().ingestCount.add(1, { collection: document.collection });
+    },
+  );
   return { document, chunkCount: chunks.length };
 }
 
-function mark(name: string, t0: number, spans: TimingSpan[]): number {
+function mark(name: string, t0: number, spans: TimingSpan[], attrs?: Record<string, string | number | boolean>): number {
   const now = Date.now();
   spans.push({ name, ms: now - t0 });
+  childSpan(name, t0, attrs);
   return now;
 }
 
@@ -218,7 +248,31 @@ export async function askEngine(opts: {
   scope?: SecurityScope;
   forceExtractive?: boolean;
   recordTrace?: boolean;
+  systemPrompt?: string;
 }): Promise<AnswerResult> {
+  return withSpan(
+    "aether.ask",
+    {
+      "aether.shard.mode": opts.shardMode ?? "adaptive",
+      "aether.force_path": opts.forcePath ?? "adaptive",
+    },
+    (span) => askEngineInner(opts, span),
+  );
+}
+
+async function askEngineInner(
+  opts: {
+    query: string;
+    memory?: MemoryItem[];
+    forcePath?: "fast" | "deep" | "adaptive";
+    shardMode?: "adaptive" | "all";
+    scope?: SecurityScope;
+    forceExtractive?: boolean;
+    recordTrace?: boolean;
+    systemPrompt?: string;
+  },
+  otelSpan: Span,
+): Promise<AnswerResult> {
   const tAll = Date.now();
   const engine = getEngine();
   const spans: TimingSpan[] = [];
@@ -346,8 +400,13 @@ export async function askEngine(opts: {
     memory: memoryHits,
     confidenceBand: confidence.band,
     skipLlm: opts.forceExtractive,
+    systemPrompt: opts.systemPrompt,
   });
-  mark("generation", t, spans);
+  mark("generation", t, spans, {
+    "aether.gen.model": gen.model,
+    "aether.gen.used_llm": gen.usedLlm,
+    "aether.gen.tokens": gen.inputTokens + gen.outputTokens,
+  });
 
   const citedShards = [
     ...new Set(selected.map((s) => s.shardId).filter((id): id is string => Boolean(id))),
@@ -355,8 +414,28 @@ export async function askEngine(opts: {
   recordShardHit(engine.shards, tokenize(opts.query), citedShards);
 
   const refused = /couldn't find enough evidence/i.test(gen.answer);
+  const otelTraceId = activeTraceId() ?? otelSpan.spanContext().traceId;
+  const latencyMs = Date.now() - tAll;
+  otelSpan.setAttribute("aether.query.kind", plan.kind);
+  otelSpan.setAttribute("aether.path", plan.path);
+  otelSpan.setAttribute("aether.citation.count", citations.length);
+  otelSpan.setAttribute("aether.confidence", round4(confidence.score));
+  otelSpan.setAttribute("aether.confidence.band", confidence.band);
+  otelSpan.setAttribute("aether.gen.model", gen.model);
+  otelSpan.setAttribute("aether.gen.used_llm", gen.usedLlm);
+  otelSpan.setAttribute("aether.gen.tokens", gen.inputTokens + gen.outputTokens);
+  otelSpan.setAttribute("aether.refused", refused);
+  otelSpan.setAttribute("aether.query.hash", otelTraceId.slice(0, 8));
+  if (sharding.searched.length) otelSpan.setAttribute("aether.shards.searched", sharding.searched.length);
+  const inst = getInstruments();
+  inst.askCount.add(1, { path: plan.path, kind: plan.kind });
+  inst.askDuration.record(latencyMs, { path: plan.path, kind: plan.kind });
+  if (gen.inputTokens + gen.outputTokens) {
+    inst.askTokens.add(gen.inputTokens + gen.outputTokens, { model: gen.model });
+  }
+
   const trace: RetrievalTrace = {
-    id: `tr_${Date.now().toString(36)}`,
+    id: `tr_${otelTraceId}`,
     query: opts.query,
     plan,
     candidates: cands.slice(0, 16).map((c) => ({
@@ -399,7 +478,7 @@ export async function askEngine(opts: {
     confidence,
     path: plan.path,
     kind: plan.kind,
-    latencyMs: Date.now() - tAll,
+    latencyMs,
     contradictions,
     followups: gen.followups,
     trace,

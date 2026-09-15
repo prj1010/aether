@@ -10,6 +10,7 @@ import {
   recentTraces,
   searchEngine,
 } from "@/lib/rag/engine";
+import { extractUploadedFile, titleFromFilename } from "@/lib/rag/extract-upload";
 import { GOLDEN_EVAL, runGoldenEval } from "@/lib/rag/evaluate";
 import {
   FRAMEWORKS,
@@ -21,7 +22,108 @@ import {
   type FrameworkId,
 } from "@/lib/rag/compliance";
 import { LLM_PROVIDERS, publicLlmStatus } from "@/lib/rag/llm";
+import { otelSnapshot } from "@/lib/otel/sdk";
+import {
+  DEFAULT_OPERATOR_PROMPT,
+  getOperatorPrompt,
+  setOperatorPrompt,
+} from "@/lib/rag/security";
 import type { CollectionId, MemoryItem } from "@/lib/rag/types";
+
+const COLLECTIONS: CollectionId[] = [
+  "policy",
+  "architecture",
+  "people",
+  "security",
+  "product",
+  "operations",
+];
+
+function asCollection(value: string): CollectionId {
+  return (COLLECTIONS as string[]).includes(value) ? (value as CollectionId) : "operations";
+}
+
+const hydrateRef = globalThis as typeof globalThis & { __aetherUploadsHydrated__?: boolean };
+
+async function hydrateUploads() {
+  if (hydrateRef.__aetherUploadsHydrated__) return;
+  hydrateRef.__aetherUploadsHydrated__ = true;
+  try {
+    const sql = await getSql();
+    const rows = await sql<{
+      id: string;
+      title: string;
+      filename: string;
+      collection: string;
+      content: string;
+    }>`select id, title, filename, collection, content from documents where id like ${"doc-user-%"}`;
+    for (const row of rows) {
+      addDocumentToEngine({
+        id: String(row.id),
+        title: String(row.title),
+        filename: String(row.filename),
+        collection: asCollection(String(row.collection)),
+        text: String(row.content),
+      });
+    }
+  } catch {
+    /* empty corpus is fine */
+  }
+}
+
+async function persistUploaded(d: {
+  id: string;
+  title: string;
+  filename: string;
+  collection: string;
+  version: number;
+  content: string;
+  sourceUri: string;
+  contentHash: string;
+  pageCount: number;
+  validFrom: string;
+  validTo: string | null;
+  supersededBy: string | null;
+  classification: string;
+  author: string;
+  status: string;
+}) {
+  try {
+    const sql = await getSql();
+    await sql`
+      insert into documents (
+        id, title, filename, collection, version, content, source_uri, content_hash,
+        page_count, valid_from, valid_to, superseded_by, classification, author, status
+      ) values (
+        ${d.id}, ${d.title}, ${d.filename}, ${d.collection}, ${d.version}, ${d.content},
+        ${d.sourceUri}, ${d.contentHash}, ${d.pageCount}, ${d.validFrom}, ${d.validTo},
+        ${d.supersededBy}, ${d.classification}, ${d.author}, ${d.status}
+      )
+      on conflict (id) do nothing
+    `;
+  } catch {
+    /* persistence is best-effort on PGLite */
+  }
+}
+
+function indexText(input: {
+  title: string;
+  filename: string;
+  collection: CollectionId;
+  text: string;
+}) {
+  const text = input.text.slice(0, 80_000);
+  if (!text.trim()) throw new Error("Nothing to index — the file had no extractable text.");
+  const title = input.title.slice(0, 160) || titleFromFilename(input.filename);
+  const added = addDocumentToEngine({
+    title,
+    filename: input.filename.slice(0, 120),
+    collection: input.collection,
+    text,
+  });
+  void persistUploaded(added.document);
+  return { id: added.document.id, chunkCount: added.chunkCount, title: added.document.title };
+}
 
 async function recordMetric(row: {
   id: string;
@@ -76,11 +178,16 @@ export const getOverview = createServerFn({ method: "GET" }).handler(async () =>
   return { stats, metrics };
 });
 
+export const getOtel = createServerFn({ method: "GET" }).handler(async () => {
+  return otelSnapshot();
+});
+
 export const getGeneratorStatus = createServerFn({ method: "GET" }).handler(async () => {
   return { ...publicLlmStatus(), providers: LLM_PROVIDERS };
 });
 
 export const listDocs = createServerFn({ method: "GET" }).handler(async () => {
+  await hydrateUploads();
   return listEngineDocuments().map((d) => ({
     id: d.id,
     title: d.title,
@@ -159,31 +266,46 @@ export const ingestDocument = createServerFn({ method: "POST" })
     }) => input,
   )
   .handler(async ({ data }) => {
-    const text = data.text.slice(0, 80_000);
-    const title = data.title.slice(0, 160) || "Untitled";
-    const added = addDocumentToEngine({
-      title,
-      filename: data.filename.slice(0, 120),
-      collection: data.collection,
+    await hydrateUploads();
+    return indexText({
+      title: data.title,
+      filename: data.filename,
+      collection: asCollection(data.collection),
+      text: data.text,
+    });
+  });
+
+export const ingestUpload = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      title: string;
+      filename: string;
+      collection: CollectionId;
+      bytesBase64: string;
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    await hydrateUploads();
+    const raw = data.bytesBase64.replace(/^data:[^;]+;base64,/, "");
+    const bytes = Buffer.from(raw, "base64");
+    const text = extractUploadedFile(data.filename, bytes);
+    return indexText({
+      title: data.title,
+      filename: data.filename,
+      collection: asCollection(data.collection),
       text,
     });
-    try {
-      const sql = await getSql();
-      const d = added.document;
-      await sql`
-        insert into documents (
-          id, title, filename, collection, version, content, source_uri, content_hash,
-          page_count, valid_from, valid_to, superseded_by, classification, author, status
-        ) values (
-          ${d.id}, ${d.title}, ${d.filename}, ${d.collection}, ${d.version}, ${d.content},
-          ${d.sourceUri}, ${d.contentHash}, ${d.pageCount}, ${d.validFrom}, ${d.validTo},
-          ${d.supersededBy}, ${d.classification}, ${d.author}, ${d.status}
-        )
-      `;
-    } catch {
-      /* persistence optional */
-    }
-    return { id: added.document.id, chunkCount: added.chunkCount, title: added.document.title };
+  });
+
+export const getSystemPrompt = createServerFn({ method: "GET" }).handler(async () => {
+  return { prompt: getOperatorPrompt(), isDefault: getOperatorPrompt() === DEFAULT_OPERATOR_PROMPT };
+});
+
+export const saveSystemPrompt = createServerFn({ method: "POST" })
+  .validator((input: { prompt: string }) => input)
+  .handler(async ({ data }) => {
+    const prompt = setOperatorPrompt(data.prompt.slice(0, 120_000));
+    return { prompt, isDefault: prompt === DEFAULT_OPERATOR_PROMPT };
   });
 
 export const listTraces = createServerFn({ method: "GET" }).handler(async () => {

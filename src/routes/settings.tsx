@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { PageCanvas, PageHeader } from "@/components/page-header";
 import { Tile, TileButton, TileHint, TileTitle } from "@/components/tile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getGeneratorStatus } from "@/lib/server/aether";
+import { Textarea } from "@/components/ui/textarea";
+import { getGeneratorStatus, getOtel, getSystemPrompt, saveSystemPrompt } from "@/lib/server/aether";
 import { useAether } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -43,12 +45,26 @@ const SHARDS = [
 ];
 
 function SettingsPage() {
+  const qc = useQueryClient();
   const forcePath = useAether((s) => s.forcePath);
   const setForcePath = useAether((s) => s.setForcePath);
   const shardMode = useAether((s) => s.shardMode);
   const setShardMode = useAether((s) => s.setShardMode);
   const clearChat = useAether((s) => s.clearChat);
   const generator = useQuery({ queryKey: ["generator"], queryFn: () => getGeneratorStatus() });
+  const otel = useQuery({ queryKey: ["otel"], queryFn: () => getOtel() });
+  const promptQ = useQuery({ queryKey: ["system-prompt"], queryFn: () => getSystemPrompt() });
+  const [draft, setDraft] = useState("");
+  useEffect(() => {
+    if (promptQ.data?.prompt && !draft) setDraft(promptQ.data.prompt);
+  }, [promptQ.data, draft]);
+  const savePrompt = useMutation({
+    mutationFn: () => saveSystemPrompt({ data: { prompt: draft } }),
+    onSuccess: (res) => {
+      setDraft(res.prompt);
+      void qc.invalidateQueries({ queryKey: ["system-prompt"] });
+    },
+  });
 
   return (
     <AppShell>
@@ -58,9 +74,8 @@ function SettingsPage() {
         <section className="mt-10">
           <h2 className="text-sm font-medium">Generator</h2>
           <p className="mt-2 text-sm text-muted">
-            Retrieval is model-agnostic. Plug in any OpenAI-compatible endpoint, Anthropic, Azure,
-            Groq, Gemini, Mistral, OpenRouter, Together, xAI, or a local Ollama — or leave keys
-            unset and answers stay extractive from the corpus.
+            Retrieval is model-agnostic. With no generator key, answers stay extractive from the
+            indexed documents.
           </p>
           <Tile className="mt-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -73,9 +88,10 @@ function SettingsPage() {
                 </Badge>
               ) : null}
             </div>
-            <p className="mt-2 font-mono text-micro text-dim">
-              Set LLM_PROVIDER, LLM_API_KEY, LLM_MODEL, LLM_BASE_URL — or a vendor key. See
-              .env.example.
+            <p className="mt-2 text-sm text-muted">
+              {generator.data?.configured
+                ? "The active generator is used only after retrieval and rerank."
+                : "No generator key is configured. Answers are assembled from retrieved passages."}
             </p>
           </Tile>
           {generator.data?.providers?.length ? (
@@ -106,6 +122,68 @@ function SettingsPage() {
               </table>
             </div>
           ) : null}
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-sm font-medium">Telemetry</h2>
+          <p className="mt-2 text-sm text-muted">
+            OpenTelemetry traces and metrics for every ask and ingest. Export over OTLP/HTTP when
+            an endpoint is set; otherwise the in-process ring feeds Observability.
+          </p>
+          <Tile className="mt-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">{otel.data?.service.name ?? "aether"}</span>
+              <Badge variant="ok">{otel.data?.exporter.traces ?? "in-process"}</Badge>
+            </div>
+            <p className="mt-2 font-mono text-micro text-dim">
+              {otel.data?.exporter.endpoint
+                ? otel.data.exporter.endpoint
+                : "OTEL_EXPORTER_OTLP_ENDPOINT is unset — traces stay in-process"}
+            </p>
+          </Tile>
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-sm font-medium">System prompt</h2>
+          <p className="mt-2 text-sm text-muted">
+            Operator instructions for generation. Retrieval, citations, and untrusted-document
+            isolation stay in force regardless of this text.
+          </p>
+          <Tile className="mt-4 space-y-3">
+            {promptQ.isLoading ? (
+              <p className="text-sm text-muted">Loading prompt…</p>
+            ) : (
+              <Textarea
+                className="min-h-56 font-mono text-xs leading-relaxed"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                aria-label="System prompt"
+              />
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                disabled={savePrompt.isPending || !draft.trim()}
+                onClick={() => savePrompt.mutate()}
+              >
+                {savePrompt.isPending ? "Saving…" : "Save prompt"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={savePrompt.isPending}
+                onClick={() => {
+                  if (promptQ.data?.prompt) setDraft(promptQ.data.prompt);
+                }}
+              >
+                Reset
+              </Button>
+              {promptQ.data?.isDefault ? <Badge>Default</Badge> : <Badge variant="ok">Custom</Badge>}
+            </div>
+            {savePrompt.isError ? (
+              <p className="text-sm text-danger">Could not save the prompt.</p>
+            ) : null}
+          </Tile>
         </section>
 
         <section className="mt-10">

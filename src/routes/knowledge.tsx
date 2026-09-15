@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Plus } from "lucide-react";
-import { useState } from "react";
+import { FileText, Plus, Upload } from "lucide-react";
+import { useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { CollectionGlyph } from "@/components/collection-mark";
 import { BlurFade } from "@/components/magicui/blur-fade";
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { getDoc, ingestDocument, listDocs } from "@/lib/server/aether";
+import { getDoc, ingestDocument, ingestUpload, listDocs } from "@/lib/server/aether";
 import { COLLECTION_LABEL, type CollectionId } from "@/lib/rag/types";
 import { cn } from "@/lib/utils";
 
@@ -48,11 +48,11 @@ function KnowledgePage() {
         <PageHeader
           kicker="Corpus"
           title="Knowledge"
-          description="Structured Northstar documents with versions, validity windows, and provenance on every chunk."
+          description="Indexed documents with versions, validity windows, and provenance on every chunk."
           actions={
             <Button variant="secondary" onClick={() => setShowIngest(true)}>
               <Plus className="size-4" />
-              Add document
+              Upload document
             </Button>
           }
         />
@@ -220,32 +220,115 @@ function IngestSheet({
   const [title, setTitle] = useState("");
   const [collection, setCollection] = useState<CollectionId>("policy");
   const [text, setText] = useState("");
+  const [filename, setFilename] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [drag, setDrag] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const mut = useMutation({
-    mutationFn: () =>
-      ingestDocument({
+    mutationFn: async () => {
+      if (file) {
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let bin = "";
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        }
+        return ingestUpload({
+          data: {
+            title: title.trim() || file.name.replace(/\.[^.]+$/, ""),
+            filename: file.name,
+            collection,
+            bytesBase64: btoa(bin),
+          },
+        });
+      }
+      return ingestDocument({
         data: {
           title,
-          filename: `${title.replace(/\s+/g, "-").toLowerCase() || "note"}.txt`,
+          filename: filename || `${title.replace(/\s+/g, "-").toLowerCase() || "note"}.txt`,
           collection,
           text,
         },
-      }),
-    onSuccess: onDone,
+      });
+    },
+    onSuccess: () => {
+      setTitle("");
+      setText("");
+      setFilename("");
+      setFile(null);
+      setLocalError(null);
+      onDone();
+    },
   });
+
+  function takeFile(next: File | undefined) {
+    if (!next) return;
+    setLocalError(null);
+    if (next.size > 2_000_000) {
+      setLocalError("File is over 2 MB. Split it or paste the relevant section.");
+      return;
+    }
+    setFile(next);
+    setFilename(next.name);
+    if (!title.trim()) setTitle(next.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "));
+    const ext = next.name.split(".").pop()?.toLowerCase() ?? "";
+    if (["txt", "md", "markdown", "csv", "json", "html", "htm", "log"].includes(ext)) {
+      void next.text().then((body) => setText(body.slice(0, 80_000)));
+    } else {
+      setText("");
+    }
+  }
+
+  const canSubmit = Boolean(file) || (title.trim() && text.trim());
+
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title="Ingest document"
-      description="Paste text. Structure is preserved as a single section if none is provided."
+      title="Upload document"
+      description="Index a file into the corpus. Text, Markdown, PDF, and Word are supported."
     >
       <form
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          if (title.trim() && text.trim()) mut.mutate();
+          if (canSubmit) mut.mutate();
         }}
       >
+        <input
+          ref={inputRef}
+          type="file"
+          className="sr-only"
+          accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.pdf,.docx,.log"
+          onChange={(e) => takeFile(e.target.files?.[0])}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDrag(true);
+          }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDrag(false);
+            takeFile(e.dataTransfer.files?.[0]);
+          }}
+          className={cn(
+            "flex min-h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-6 text-center",
+            drag ? "border-accent bg-elevated text-fg" : "border-border bg-elevated/60 text-muted hover:text-fg",
+          )}
+        >
+          <Upload className="size-5" />
+          <span className="text-sm">{file ? file.name : "Drop a file or browse"}</span>
+          <span className="font-mono text-micro uppercase tracking-kicker text-dim">
+            txt · md · pdf · docx · 2 MB
+          </span>
+        </button>
         <label className="block text-xs text-muted">
           Title
           <Input className="mt-1.5" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -266,10 +349,23 @@ function IngestSheet({
         </label>
         <label className="block text-xs text-muted">
           Body
-          <Textarea className="mt-1.5 min-h-40" value={text} onChange={(e) => setText(e.target.value)} />
+          <Textarea
+            className="mt-1.5 min-h-40"
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (file && e.target.value) setFile(null);
+            }}
+            placeholder={file ? "Text will be extracted from the file on index." : "Or paste text"}
+          />
         </label>
-        {mut.isError ? <p className="text-sm text-danger">Indexing failed. Try again.</p> : null}
-        <Button type="submit" disabled={mut.isPending || !title.trim() || !text.trim()}>
+        {localError ? <p className="text-sm text-danger">{localError}</p> : null}
+        {mut.isError ? (
+          <p className="text-sm text-danger">
+            {mut.error instanceof Error ? mut.error.message : "Indexing failed. Try a .txt or .md file."}
+          </p>
+        ) : null}
+        <Button type="submit" disabled={mut.isPending || !canSubmit}>
           {mut.isPending ? "Indexing…" : "Index"}
         </Button>
       </form>

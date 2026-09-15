@@ -16,6 +16,7 @@ import { Route as EvalRouteImport } from './routes/eval'
 import { Route as InspectorRouteImport } from './routes/inspector'
 import { Route as KnowledgeRouteImport } from './routes/knowledge'
 import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as SettingsRouteImport } from './routes/settings'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const MemoryRoute = MemoryRouteImport.update({
   path: '/memory',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ObservabilityRoute = ObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/inspector': typeof InspectorRoute
   '/knowledge': typeof KnowledgeRoute
   '/memory': typeof MemoryRoute
+  '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/inspector': typeof InspectorRoute
   '/knowledge': typeof KnowledgeRoute
   '/memory': typeof MemoryRoute
+  '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/inspector': typeof InspectorRoute
   '/knowledge': typeof KnowledgeRoute
   '/memory': typeof MemoryRoute
+  '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/inspector'
     | '/knowledge'
     | '/memory'
+    | '/observability'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/inspector'
     | '/knowledge'
     | '/memory'
+    | '/observability'
     | '/settings'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/inspector'
     | '/knowledge'
     | '/memory'
+    | '/observability'
     | '/settings'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   InspectorRoute: typeof InspectorRoute
   KnowledgeRoute: typeof KnowledgeRoute
   MemoryRoute: typeof MemoryRoute
+  ObservabilityRoute: typeof ObservabilityRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/observability': {
+      id: '/observability'
+      path: '/observability'
+      fullPath: '/observability'
+      preLoaderRoute: typeof ObservabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   InspectorRoute: InspectorRoute,
   KnowledgeRoute: KnowledgeRoute,
   MemoryRoute: MemoryRoute,
+  ObservabilityRoute: ObservabilityRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

@@ -76,6 +76,8 @@ npm run dev
 
 Open [http://localhost:8080](http://localhost:8080). The first load seeds the Northstar Systems corpus into an embedded PGLite database — no Postgres install and no `DATABASE_URL` needed.
 
+**Colab (desk UI):** [notebooks/aether_frontend_colab.ipynb](notebooks/aether_frontend_colab.ipynb) installs Node 22, clones this repo, starts `npm run dev` on port 8080, and opens Colab’s port proxy. CPU runtime is enough.
+
 ### Choose a generator
 
 Leave keys empty for extractive mode. Or set one of:

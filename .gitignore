@@ -24,6 +24,7 @@ public/__grok/
 
 # grok chrome captures, not product screenshots
 screenshots/app-builder-*
+screenshots/compliance-smoke*
 
 # logs / OS
 *.log

@@ -78,6 +78,26 @@ Open [http://localhost:8080](http://localhost:8080). The first load seeds the No
 
 **Colab (desk UI):** [notebooks/aether_frontend_colab.ipynb](notebooks/aether_frontend_colab.ipynb) installs Node 22, clones this repo, starts `npm run dev` on port 8080, and opens Colab’s port proxy. CPU runtime is enough.
 
+## Deploy on Render
+
+Render reads **`render.yaml`** (Blueprint). There is no Render `.toml` — `sdk/python/pyproject.toml` is only the Python SDK package. Node version is pinned by `.node-version` / `.nvmrc` (`22`).
+
+1. Push `main` (already contains the Blueprint).
+2. In [Render](https://dashboard.render.com): **New → Blueprint** → connect `prj1010/aether`.
+3. When prompted for `sync: false` variables, leave them **empty** unless you want an LLM or a hosted Postgres. Empty keys → extractive answers on PGLite.
+4. Deploy. The service binds `0.0.0.0:$PORT` via Nitro `node-server`.
+
+Build / start (also in the Blueprint):
+
+```bash
+npm ci --include=dev && npm run build
+node .output/server/index.mjs
+```
+
+`--include=dev` is required: Vite and Nitro live in `devDependencies` and are needed to compile. Auth stays off (`VITE_AUTH_ENABLED=false`) so no login wall. Set `DATABASE_URL` only if you attach Render Postgres / Neon; otherwise the desk reseeds Northstar on each boot.
+
+Secret names: [`.env.render.example`](.env.render.example). Never commit real values. After the first Blueprint apply, change secrets in the service **Environment** tab — `sync: false` is not overwritten on later Blueprint syncs.
+
 ### Choose a generator
 
 Leave keys empty for extractive mode. Or set one of:
@@ -135,6 +155,7 @@ Open **Inspector** after an ask to see classification, shard routing, scores, an
 |---|---|
 | `npm run dev` | Dev server on port 8080 |
 | `npm run build` | Production build |
+| `npm run start` | Production Node server (`.output/server`) |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
 | `npm test` | Unit tests |
 | `npm run lint` | ESLint |

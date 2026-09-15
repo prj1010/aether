@@ -11,7 +11,7 @@ export function AnswerBody({
   const setActive = useAether((s) => s.setActiveCitation);
   const parts = text.split(/(\[\d+\])/g);
   return (
-    <div className="space-y-3 text-[15px] leading-relaxed text-fg/95">
+    <div className="space-y-3 text-prose leading-relaxed text-fg/95">
       {parts.join("").split("\n").map((line, i) => {
         if (!line.trim()) return <div key={i} className="h-2" />;
         const bits = line.split(/(\[\d+\])/g);
@@ -27,7 +27,7 @@ export function AnswerBody({
                   key={j}
                   type="button"
                   onClick={() => cit && setActive(cit)}
-                  className="mx-0.5 inline-flex translate-y-[-1px] items-center rounded-sm bg-elevated px-1 font-mono text-[11px] text-accent hover:bg-subtle"
+                  className="mx-0.5 inline-flex translate-y-[-1px] items-center rounded-sm bg-elevated px-1 font-mono text-micro text-accent hover:bg-subtle"
                 >
                   {n}
                 </button>

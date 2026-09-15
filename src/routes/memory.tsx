@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
+import { PalaceDiagram } from "@/components/collection-mark";
+import { BlurFade } from "@/components/magicui/blur-fade";
+import { PageCanvas, PageHeader } from "@/components/page-header";
+import { Tile, TileHint, TileKicker, TileTitle } from "@/components/tile";
 import { Badge } from "@/components/ui/badge";
 import { useAether } from "@/lib/store";
 import type { MemoryItem } from "@/lib/rag/types";
@@ -18,47 +22,49 @@ function MemoryPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Palace</p>
-        <h1 className="mt-2 font-display text-3xl italic">Memory</h1>
-        <p className="mt-2 max-w-xl text-sm text-muted">
-          Hierarchical memory is not the knowledge base. Documents are organizational facts. This
-          palace holds episodic context for the current desk — isolated from other employees by
-          construction.
-        </p>
+      <PageCanvas>
+        <PageHeader
+          kicker="Palace"
+          title="Memory"
+          description="Hierarchical memory is not the knowledge base. Documents are organizational facts. This palace holds episodic context for the current desk — isolated from other employees by construction."
+        />
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
-          {LAYERS.map((layer) => {
+        <PalaceDiagram className="mt-8 hidden h-24 w-full max-w-lg md:block" />
+
+        <div className="mt-8 grid gap-3 md:grid-cols-2">
+          {LAYERS.map((layer, i) => {
             const items = memory.filter((m) => m.layer === layer.id);
             return (
-              <section key={layer.id} className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="font-display text-2xl italic">
-                    {layer.id}
-                    <span className="ml-2 not-italic font-sans text-sm text-muted">{layer.title}</span>
-                  </h2>
-                  <Badge>{items.length}</Badge>
-                </div>
-                <p className="mt-2 text-sm text-muted">{layer.blurb}</p>
-                <ul className="mt-4 space-y-3">
-                  {items.length === 0 ? (
-                    <li className="text-sm text-dim">Empty</li>
-                  ) : (
-                    items.map((m) => (
-                      <li key={m.id} className="rounded-md bg-elevated p-3">
-                        <div className="font-mono text-[10px] uppercase tracking-wider text-dim">
-                          {m.wing} / {m.room} / {m.closet}
-                        </div>
-                        <p className="mt-1.5 text-sm leading-relaxed text-fg/90">{m.content}</p>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </section>
+              <BlurFade key={layer.id} delay={i * 0.06}>
+                <Tile className="min-h-44">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <TileKicker>{layer.id}</TileKicker>
+                    <Badge>{items.length}</Badge>
+                  </div>
+                  <TileTitle className="mt-2 font-display text-2xl italic font-normal">
+                    {layer.title}
+                  </TileTitle>
+                  <TileHint className="text-sm text-muted">{layer.blurb}</TileHint>
+                  <ul className="mt-4 space-y-3">
+                    {items.length === 0 ? (
+                      <li className="text-sm text-dim">Empty — this layer fills as you ask.</li>
+                    ) : (
+                      items.map((m) => (
+                        <li key={m.id} className="rounded-md bg-elevated p-3">
+                          <div className="font-mono text-2xs uppercase tracking-wider text-dim">
+                            {m.wing} / {m.room} / {m.closet}
+                          </div>
+                          <p className="mt-1.5 text-sm leading-relaxed text-fg/90">{m.content}</p>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </Tile>
+              </BlurFade>
             );
           })}
         </div>
-      </div>
+      </PageCanvas>
     </AppShell>
   );
 }

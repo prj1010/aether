@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
+import { PageCanvas, PageHeader } from "@/components/page-header";
+import { Tile, TileButton, TileHint, TileTitle } from "@/components/tile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getGeneratorStatus } from "@/lib/server/aether";
@@ -50,9 +52,8 @@ function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Control</p>
-        <h1 className="mt-2 font-display text-3xl italic">Settings</h1>
+      <PageCanvas className="max-w-3xl">
+        <PageHeader kicker="Control" title="Settings" />
 
         <section className="mt-10">
           <h2 className="text-sm font-medium">Generator</h2>
@@ -61,7 +62,7 @@ function SettingsPage() {
             Groq, Gemini, Mistral, OpenRouter, Together, xAI, or a local Ollama — or leave keys
             unset and answers stay extractive from the corpus.
           </p>
-          <div className="mt-4 rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <Tile className="mt-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium">
                 {generator.data?.label ?? "Checking generator…"}
@@ -72,14 +73,15 @@ function SettingsPage() {
                 </Badge>
               ) : null}
             </div>
-            <p className="mt-2 font-mono text-[11px] text-dim">
-              Set LLM_PROVIDER, LLM_API_KEY, LLM_MODEL, LLM_BASE_URL — or a vendor key. See .env.example.
+            <p className="mt-2 font-mono text-micro text-dim">
+              Set LLM_PROVIDER, LLM_API_KEY, LLM_MODEL, LLM_BASE_URL — or a vendor key. See
+              .env.example.
             </p>
-          </div>
+          </Tile>
           {generator.data?.providers?.length ? (
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="font-mono text-[11px] uppercase tracking-[0.12em] text-dim">
+                <thead className="font-mono text-micro uppercase tracking-kicker text-dim">
                   <tr>
                     <th className="py-2 pr-4 font-medium">Provider</th>
                     <th className="py-2 pr-4 font-medium">Env</th>
@@ -94,10 +96,10 @@ function SettingsPage() {
                           {p.label}
                         </span>
                       </td>
-                      <td className="py-2 pr-4 font-mono text-[11px] text-muted">
+                      <td className="py-2 pr-4 font-mono text-micro text-muted">
                         {p.needsKey ? p.keyEnvs[0] ?? "LLM_API_KEY" : "none (local)"}
                       </td>
-                      <td className="py-2 font-mono text-[11px] text-muted">{p.defaultModel}</td>
+                      <td className="py-2 font-mono text-micro text-muted">{p.defaultModel}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -110,18 +112,15 @@ function SettingsPage() {
           <h2 className="text-sm font-medium">Retrieval policy</h2>
           <div className="mt-4 grid gap-3">
             {PATHS.map((p) => (
-              <button
+              <TileButton
                 key={p.id}
-                type="button"
+                selected={forcePath === p.id}
+                beam={forcePath === p.id}
                 onClick={() => setForcePath(p.id)}
-                className={cn(
-                  "rounded-xl p-4 text-left shadow-[var(--shadow-border)] transition-colors",
-                  forcePath === p.id ? "bg-elevated" : "bg-surface hover:bg-elevated/50",
-                )}
               >
-                <div className="text-sm font-medium">{p.title}</div>
-                <p className="mt-1 text-sm text-muted">{p.body}</p>
-              </button>
+                <TileTitle>{p.title}</TileTitle>
+                <TileHint className="text-sm text-muted">{p.body}</TileHint>
+              </TileButton>
             ))}
           </div>
         </section>
@@ -134,18 +133,15 @@ function SettingsPage() {
           </p>
           <div className="mt-4 grid gap-3">
             {SHARDS.map((p) => (
-              <button
+              <TileButton
                 key={p.id}
-                type="button"
+                selected={shardMode === p.id}
+                beam={shardMode === p.id}
                 onClick={() => setShardMode(p.id)}
-                className={cn(
-                  "rounded-xl p-4 text-left shadow-[var(--shadow-border)] transition-colors",
-                  shardMode === p.id ? "bg-elevated" : "bg-surface hover:bg-elevated/50",
-                )}
               >
-                <div className="text-sm font-medium">{p.title}</div>
-                <p className="mt-1 text-sm text-muted">{p.body}</p>
-              </button>
+                <TileTitle>{p.title}</TileTitle>
+                <TileHint className="text-sm text-muted">{p.body}</TileHint>
+              </TileButton>
             ))}
           </div>
         </section>
@@ -182,7 +178,7 @@ function SettingsPage() {
             reimbursement or vacation policy.
           </p>
         </section>
-      </div>
+      </PageCanvas>
     </AppShell>
   );
 }

@@ -1,22 +1,26 @@
-import type { ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { AppShell } from "@/components/app-shell";
+import { CollectionGlyph } from "@/components/collection-mark";
+import { BlurFade } from "@/components/magicui/blur-fade";
+import { PageCanvas, PageHeader } from "@/components/page-header";
+import { Tile, TileHint, TileMeta, TileTitle } from "@/components/tile";
+import { BarChart, ChartCard } from "@/components/tremor/bar-chart";
+import { KpiCard } from "@/components/tremor/kpi-card";
+import { Tracker } from "@/components/tremor/tracker";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getOverview, listTraces } from "@/lib/server/aether";
+import type { CollectionId } from "@/lib/rag/types";
 import { useAether } from "@/lib/store";
 import { formatMs, formatPct } from "@/lib/utils";
 
 export const Route = createFileRoute("/analytics")({ component: AnalyticsPage });
+
+function isCollection(id: string): id is CollectionId {
+  return ["policy", "architecture", "people", "security", "product", "operations"].includes(id);
+}
 
 function AnalyticsPage() {
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => getOverview() });
@@ -25,7 +29,6 @@ function AnalyticsPage() {
   const stats = overview.data?.stats;
   const metrics = overview.data?.metrics;
   const traces = local.length ? local : (serverTraces.data ?? []);
-  const shards = stats?.shards ?? [];
 
   const pathMix = [
     { name: "Fast", n: traces.filter((t) => t.plan.path === "fast").length },
@@ -34,128 +37,126 @@ function AnalyticsPage() {
   const kindMix = ["factual", "semantic", "exact", "multi_hop", "temporal", "memory", "ambiguous"].map(
     (k) => ({ name: k.replace("_", " "), n: traces.filter((t) => t.plan.kind === k).length }),
   );
-  const sharded = traces.filter((t) => t.sharding);
-  const meanFanout = sharded.length
-    ? sharded.reduce((s, t) => s + (t.sharding?.searched.length ?? 0), 0) / sharded.length
+
+  const shardFanouts = traces.map((t) => t.sharding?.searched.length ?? 0).filter((n) => n > 0);
+  const meanFanout = shardFanouts.length
+    ? shardFanouts.reduce((a, b) => a + b, 0) / shardFanouts.length
     : 0;
-  const expandRate = sharded.length
-    ? sharded.filter((t) => t.sharding?.expanded).length / sharded.length
+  const expandRate = traces.length
+    ? traces.filter((t) => t.sharding?.expanded).length / traces.length
     : 0;
+
+  const tracker = (stats?.shards ?? []).map((s) => ({
+    key: s.id,
+    color:
+      s.status === "healthy"
+        ? "bg-ok"
+        : s.status === "degraded"
+          ? "bg-warn"
+          : s.status === "offline"
+            ? "bg-danger"
+            : "bg-subtle",
+    tooltip: `${s.id} · ${s.status} · ${s.docs} docs`,
+  }));
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Observability</p>
-        <h1 className="mt-2 font-display text-3xl italic">Analytics</h1>
-        <p className="mt-2 max-w-xl text-sm text-muted">
-          Latency, path mix, shard fan-out, and confidence. Document text is never stored in this view.
-        </p>
+      <PageCanvas>
+        <PageHeader
+          kicker="Observability"
+          title="Analytics"
+          description="Latency, path mix, shard fan-out, and confidence. Document text is never stored in this view."
+        />
 
-        <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Documents" value={String(stats?.documents ?? "—")} />
-          <Stat label="Chunks" value={String(stats?.chunks ?? "—")} />
-          <Stat label="Entities" value={String(stats?.entities ?? "—")} />
-          <Stat label="Traces" value={String(traces.length)} />
-          <Stat label="p50" value={metrics?.p50 ? formatMs(metrics.p50) : "—"} />
-          <Stat label="p95" value={metrics?.p95 ? formatMs(metrics.p95) : "—"} />
-          <Stat label="Mean confidence" value={metrics ? formatPct(metrics.meanConfidence) : "—"} />
-          <Stat label="LLM share" value={metrics ? formatPct(metrics.llmShare) : "—"} />
-          <Stat label="Shards" value={String(shards.length || "—")} />
-          <Stat label="Partition" value={stats?.shardMode ?? "—"} />
-          <Stat label="Mean fan-out" value={sharded.length ? meanFanout.toFixed(1) : "—"} />
-          <Stat label="Expand rate" value={sharded.length ? formatPct(expandRate) : "—"} />
-        </div>
-
-        {shards.length > 0 ? (
-          <section className="mt-10">
-            <h2 className="text-sm font-medium">Collection shards</h2>
-            <p className="mt-2 max-w-xl text-sm text-muted">
-              Mini-indexes: BM25, embeddings, graph, and provenance per collection. Hash split only
-              if a collection grows past the size threshold.
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {shards.map((s) => (
-                <div key={s.id} className="rounded-xl bg-surface px-4 py-4 shadow-[var(--shadow-border)]">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[11px] text-muted">{s.id}</span>
-                    <Badge variant={s.status === "healthy" ? "ok" : s.status === "degraded" ? "warn" : "danger"}>
-                      {s.status}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 font-display text-xl italic capitalize">{s.domain}</div>
-                  <div className="mt-2 font-mono text-[11px] text-dim">
-                    {s.docs} doc{s.docs === 1 ? "" : "s"} · {s.chunks} chunk{s.chunks === 1 ? "" : "s"} · health {Math.round(s.health * 100)}%
-                  </div>
-                  {s.keywords?.length ? (
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {s.keywords.slice(0, 5).map((k) => (
-                        <Badge key={k}>{k}</Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+        {overview.isLoading ? (
+          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
+            ))}
+          </div>
+        ) : overview.isError ? (
+          <Tile className="mt-8 p-6">
+            <p className="text-sm text-danger">Could not load analytics.</p>
+          </Tile>
+        ) : (
+          <>
+            <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <KpiCard label="Documents" numeric={stats?.documents ?? 0} />
+              <KpiCard label="Chunks" numeric={stats?.chunks ?? 0} />
+              <KpiCard label="Entities" numeric={stats?.entities ?? 0} />
+              <KpiCard label="Traces" numeric={traces.length} />
+              <KpiCard label="p50" value={metrics?.p50 ? formatMs(metrics.p50) : "—"} />
+              <KpiCard label="p95" value={metrics?.p95 ? formatMs(metrics.p95) : "—"} />
+              <KpiCard
+                label="Mean confidence"
+                value={metrics ? formatPct(metrics.meanConfidence) : "—"}
+              />
+              <KpiCard label="LLM share" value={metrics ? formatPct(metrics.llmShare) : "—"} />
+              <KpiCard label="Shards" numeric={stats?.shards?.length ?? 0} hint={stats?.shardMode} />
+              <KpiCard label="Partition" value={stats?.shardMode ?? "—"} />
+              <KpiCard label="Mean fan-out" value={meanFanout ? meanFanout.toFixed(1) : "—"} />
+              <KpiCard label="Expand rate" value={formatPct(expandRate)} />
             </div>
-          </section>
-        ) : null}
 
-        <div className="mt-10 grid gap-8 md:grid-cols-2">
-          <ChartCard title="Path mix">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={pathMix}>
-                <CartesianGrid stroke="rgba(244,244,240,0.06)" vertical={false} />
-                <XAxis dataKey="name" stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "#121214",
-                    border: "1px solid rgba(244,244,240,0.12)",
-                    borderRadius: 8,
-                    color: "#f4f4f0",
-                  }}
-                />
-                <Bar dataKey="n" fill="#c8ccd4" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-          <ChartCard title="Query kind">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={kindMix}>
-                <CartesianGrid stroke="rgba(244,244,240,0.06)" vertical={false} />
-                <XAxis dataKey="name" stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "#121214",
-                    border: "1px solid rgba(244,244,240,0.12)",
-                    borderRadius: 8,
-                    color: "#f4f4f0",
-                  }}
-                />
-                <Bar dataKey="n" fill="#a1a1aa" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-      </div>
+            {tracker.length > 0 ? (
+              <BlurFade className="mt-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Shard health</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Tracker data={tracker} />
+                    <p className="mt-3 font-mono text-2xs text-dim">
+                      One block per collection mini-index. Hover for status.
+                    </p>
+                  </CardContent>
+                </Card>
+              </BlurFade>
+            ) : null}
+
+            <div className="mt-8 grid gap-3 md:grid-cols-2">
+              <ChartCard title="Path mix">
+                <BarChart data={pathMix} index="name" categories={["n"]} />
+              </ChartCard>
+              <ChartCard title="Query kind">
+                <BarChart data={kindMix} index="name" categories={["n"]} />
+              </ChartCard>
+            </div>
+
+            {stats?.shards?.length ? (
+              <section className="mt-10">
+                <h2 className="text-sm font-medium">Collection shards</h2>
+                <p className="mt-1 max-w-xl text-sm text-muted">
+                  Mini-indexes: BM25, embeddings, graph, and provenance per collection. Hash split
+                  only if a collection grows past the size threshold.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {stats.shards.map((s) => (
+                    <Tile key={s.id} className="min-h-32">
+                      <div className="flex items-center justify-between gap-2">
+                        {isCollection(s.domain) ? (
+                          <CollectionGlyph id={s.domain} />
+                        ) : (
+                          <span className="font-mono text-micro text-fg">{s.id}</span>
+                        )}
+                        <Badge variant={s.status === "healthy" ? "ok" : "warn"}>{s.status}</Badge>
+                      </div>
+                      <TileTitle className="mt-4 capitalize">{s.domain}</TileTitle>
+                      <TileHint className="font-mono">
+                        {s.docs} {s.docs === 1 ? "doc" : "docs"} · {s.chunks}{" "}
+                        {s.chunks === 1 ? "chunk" : "chunks"} · health {formatPct(s.health)}
+                      </TileHint>
+                      {s.keywords?.length ? (
+                        <TileMeta className="line-clamp-2">{s.keywords.slice(0, 5).join(" · ")}</TileMeta>
+                      ) : null}
+                    </Tile>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </>
+        )}
+      </PageCanvas>
     </AppShell>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-surface px-4 py-4 shadow-[var(--shadow-border)]">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-dim">{label}</div>
-      <div className="mt-2 font-display text-2xl italic tabular-nums">{value}</div>
-    </div>
-  );
-}
-
-function ChartCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <h2 className="mb-3 text-sm font-medium">{title}</h2>
-      {children}
-    </div>
   );
 }

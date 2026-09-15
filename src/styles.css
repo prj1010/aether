@@ -23,6 +23,13 @@
   --font-display: "Instrument Serif", "Times New Roman", serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 
+  --text-2xs: 0.625rem;
+  --text-micro: 0.6875rem;
+  --tracking-kicker: 0.18em;
+  --tracking-display: -0.03em;
+
+  --text-prose: 0.9375rem;
+
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -33,6 +40,52 @@
   --shadow-border-hover: 0 0 0 1px rgba(255, 255, 255, 0.13);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-slow: 400ms;
+
+  --animate-border-beam: border-beam 8s linear infinite;
+  --animate-shine-slide: shine-slide 2.4s linear infinite;
+  --animate-shimmer-text: shimmer-text 1.8s linear infinite;
+  --animate-shine-border: shine-border 12s linear infinite;
+}
+
+@keyframes border-beam {
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+@keyframes shine-slide {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
+@keyframes shimmer-text {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes shine-border {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
 }
 
 @layer base {
@@ -69,9 +122,37 @@
     text-wrap: pretty;
   }
 
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-accent) 55%, transparent);
+    outline-offset: 2px;
+  }
+
   ::selection {
     background: color-mix(in oklab, var(--color-accent) 35%, transparent);
     color: var(--color-fg);
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--color-fg) 5%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--color-fg) 5%, transparent) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  }
+
+  .shimmer-text {
+    background-image: linear-gradient(
+      90deg,
+      var(--color-dim) 0%,
+      var(--color-fg) 45%,
+      var(--color-dim) 100%
+    );
+    background-size: 200% 100%;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer-text 1.8s linear infinite;
   }
 }
 
@@ -82,5 +163,11 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .shimmer-text {
+    animation: none;
+    color: var(--color-muted);
+    background: none;
   }
 }

@@ -28,7 +28,7 @@ export function CitationSheet() {
           <blockquote className="border-l-2 border-accent/40 pl-4 text-sm leading-relaxed text-fg/90">
             {cit.excerpt}
           </blockquote>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 font-mono text-[11px] text-muted">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 font-mono text-micro text-muted">
             <dt>Chunk</dt>
             <dd className="truncate text-fg">{cit.chunkId}</dd>
             <dt>Document</dt>

@@ -1,8 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
+import { BlurFade } from "@/components/magicui/blur-fade";
+import { PageCanvas, PageHeader } from "@/components/page-header";
+import { Tile, TileKicker, TileMeta, TileTitle } from "@/components/tile";
+import { KpiCard } from "@/components/tremor/kpi-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { listGolden, listRatings, runEvalSuite, submitRating } from "@/lib/server/aether";
 import { useAether } from "@/lib/store";
 import { formatMs, formatPct } from "@/lib/utils";
@@ -26,93 +32,114 @@ function EvalPage() {
     onSuccess: () => ratings.refetch(),
   });
 
-  const shardedOk = run.data ? run.data.recallAt5 >= (run.data.baseline?.recallAt5 ?? 0) - 0.001 : false;
+  const recallHold =
+    run.data && run.data.baseline
+      ? run.data.recallAt5 + 0.001 >= run.data.baseline.recallAt5
+      : null;
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-dim">Quality</p>
-        <h1 className="mt-2 font-display text-3xl italic">Evaluation</h1>
-        <p className="mt-2 max-w-xl text-sm text-muted">
-          Retrieval is scored independently of generation. Sharded routing is compared against the
-          unsharded global index so recall is not silently lost.
-        </p>
+      <PageCanvas>
+        <PageHeader
+          kicker="Quality"
+          title="Evaluation"
+          description="Retrieval is scored independently of generation. Sharded routing is compared against the unsharded global index so recall is not silently lost."
+          actions={
+            <Button onClick={() => run.mutate()} disabled={run.isPending}>
+              {run.isPending ? "Running suite…" : "Run golden suite"}
+            </Button>
+          }
+        />
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Button onClick={() => run.mutate()} disabled={run.isPending}>
-            {run.isPending ? "Running suite…" : "Run golden suite"}
-          </Button>
-        </div>
+        {run.isError ? (
+          <Tile className="mt-8 p-5">
+            <p className="text-sm text-danger">The suite failed to run. Try again.</p>
+          </Tile>
+        ) : null}
 
         {run.data ? (
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-surface px-4 py-4 shadow-[var(--shadow-border)]">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-dim">Sharded</span>
-                <Badge variant={shardedOk ? "ok" : "danger"}>{shardedOk ? "holds recall" : "below baseline"}</Badge>
-              </div>
-              <p className="mt-2 font-mono text-sm text-fg">
-                Recall@k {formatPct(run.data.recallAt5)} · MRR {run.data.mrr.toFixed(2)} ·{" "}
-                {formatMs(run.data.meanLatency)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-surface px-4 py-4 shadow-[var(--shadow-border)]">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-dim">Unsharded baseline</div>
-              <p className="mt-2 font-mono text-sm text-muted">
-                Recall@k {formatPct(run.data.baseline.recallAt5)} · MRR {run.data.baseline.mrr.toFixed(2)} ·{" "}
-                {formatMs(run.data.baseline.meanLatency)}
-              </p>
-            </div>
+          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiCard
+              label="Sharded recall"
+              value={formatPct(run.data.recallAt5)}
+              hint={recallHold ? "Holds vs baseline" : "Check against baseline"}
+            />
+            <KpiCard label="Sharded MRR" value={run.data.mrr.toFixed(2)} />
+            <KpiCard
+              label="Baseline recall"
+              value={formatPct(run.data.baseline.recallAt5)}
+            />
+            <KpiCard
+              label="Baseline MRR"
+              value={run.data.baseline.mrr.toFixed(2)}
+              hint={`${formatMs(run.data.meanLatency)} sharded · ${formatMs(run.data.baseline.meanLatency)} baseline`}
+            />
           </div>
         ) : null}
 
         {run.data ? (
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="font-mono text-[10px] uppercase tracking-wider text-dim">
-                <tr>
-                  <th className="py-2 font-medium">Question</th>
-                  <th className="py-2 font-medium">Hit</th>
-                  <th className="py-2 font-medium">Recall</th>
-                  <th className="py-2 font-medium">RR</th>
-                  <th className="py-2 font-medium">Path</th>
-                  <th className="py-2 font-medium">Latency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {run.data.results.map((r) => (
-                  <tr key={r.id} className="border-t border-border">
-                    <td className="max-w-sm py-2.5 pr-3">{r.question}</td>
-                    <td>
-                      <Badge variant={r.hit ? "ok" : "danger"}>{r.hit ? "yes" : "no"}</Badge>
-                    </td>
-                    <td className="tabular-nums text-muted">{formatPct(r.recallAt5)}</td>
-                    <td className="tabular-nums text-muted">{r.reciprocalRank.toFixed(2)}</td>
-                    <td className="text-muted">{r.path}</td>
-                    <td className="tabular-nums text-dim">{formatMs(r.latencyMs)}</td>
+          <Card className="mt-6 overflow-hidden">
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="font-mono text-2xs uppercase tracking-wider text-dim">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">Question</th>
+                    <th className="py-3 font-medium">Hit</th>
+                    <th className="py-3 font-medium">Recall</th>
+                    <th className="py-3 font-medium">RR</th>
+                    <th className="py-3 font-medium">Path</th>
+                    <th className="px-5 py-3 font-medium">Latency</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <ul className="mt-8 divide-y divide-border border-y border-border">
-            {(golden.data ?? []).map((g) => (
-              <li key={g.id} className="py-3">
-                <div className="text-sm">{g.question}</div>
-                <div className="mt-1 font-mono text-[11px] text-dim">
-                  {g.kind} · {g.expectedSources.join(", ")}
-                </div>
-              </li>
+                </thead>
+                <tbody>
+                  {run.data.results.map((r) => (
+                    <tr key={r.id} className="border-t border-border">
+                      <td className="max-w-sm px-5 py-2.5 pr-3">{r.question}</td>
+                      <td>
+                        <Badge variant={r.hit ? "ok" : "danger"}>{r.hit ? "yes" : "no"}</Badge>
+                      </td>
+                      <td className="tabular-nums text-muted">{formatPct(r.recallAt5)}</td>
+                      <td className="tabular-nums text-muted">{r.reciprocalRank.toFixed(2)}</td>
+                      <td className="text-muted">{r.path}</td>
+                      <td className="px-5 tabular-nums text-dim">{formatMs(r.latencyMs)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        ) : golden.isLoading ? (
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-xl" />
             ))}
-          </ul>
+          </div>
+        ) : golden.isError ? (
+          <Tile className="mt-8 p-5">
+            <p className="text-sm text-danger">Could not load the golden set.</p>
+            <Button className="mt-3" variant="secondary" onClick={() => golden.refetch()}>
+              Retry
+            </Button>
+          </Tile>
+        ) : (
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {(golden.data ?? []).map((g, i) => (
+              <BlurFade key={g.id} delay={Math.min(i, 8) * 0.04}>
+                <Tile className="min-h-28">
+                  <TileKicker>{g.kind.replace("_", " ")}</TileKicker>
+                  <TileTitle className="mt-2">{g.question}</TileTitle>
+                  <TileMeta>{g.expectedSources.join(" · ")}</TileMeta>
+                </Tile>
+              </BlurFade>
+            ))}
+          </div>
         )}
 
         {last ? (
           <section className="mt-12">
             <h2 className="text-sm font-medium">Rate last answer</h2>
             <p className="mt-2 line-clamp-3 text-sm text-muted">{last.content}</p>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => rate.mutate("correct")}>
                 Correct
               </Button>
@@ -145,7 +172,7 @@ function EvalPage() {
             </ul>
           </section>
         ) : null}
-      </div>
+      </PageCanvas>
     </AppShell>
   );
 }

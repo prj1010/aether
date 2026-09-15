@@ -3,7 +3,9 @@ from aether.certify import application, regulations
 
 def test_five_step_loop_allows_northstar():
     regs = regulations.create("my_regulations")
-    assert "eu_ai_act" in regs.list_available()
+    ids = [r["id"] for r in regs.list_available()]
+    assert "eu_ai_act" in ids
+    assert all("title" in r and "kicker" in r for r in regs.list_available())
     regs.add("eu_ai_act")
     regs.add("nist_ai_rmf")
     regs.add("operational")

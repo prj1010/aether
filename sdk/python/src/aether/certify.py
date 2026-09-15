@@ -25,11 +25,12 @@ from .llm import public_llm_status
 from .security import SYSTEM_PROMPT, scan_injection
 from .text import tokenize
 
-AVAILABLE = {
-    "eu_ai_act": "EU AI Act (Regulation 2024/1689)",
-    "nist_ai_rmf": "NIST AI RMF (Govern · Map · Measure · Manage)",
-    "operational": "Operational allow/deny policies",
-}
+FRAMEWORKS = [
+    {"id": "eu_ai_act", "title": "EU AI Act", "kicker": "Regulation 2024/1689"},
+    {"id": "nist_ai_rmf", "title": "NIST AI RMF", "kicker": "Govern · Map · Measure · Manage"},
+    {"id": "operational", "title": "Operational policies", "kicker": "Allow / deny"},
+]
+AVAILABLE = {f["id"]: f for f in FRAMEWORKS}
 
 PROBES = [
     {"id": "probe-cert", "input": "What is our certification reimbursement policy?", "kind": "policy"},
@@ -53,8 +54,8 @@ class RegulationSet:
         self.name = name
         self._ids: list[str] = []
 
-    def list_available(self) -> list[str]:
-        return list(AVAILABLE.keys())
+    def list_available(self) -> list[dict]:
+        return [dict(f) for f in FRAMEWORKS]
 
     def add(self, regulation_id: str) -> RegulationSet:
         if regulation_id not in AVAILABLE:
@@ -424,12 +425,12 @@ def _render_markdown(report: ComplianceReport) -> str:
         lines.append(f"- **{i.kind}**: {i.input_text}")
         lines.append(f"  - {i.output_text.replace(chr(10), ' ')[:240]}")
         lines.append("")
-    for fw, title in AVAILABLE.items():
-        if fw not in report.frameworks:
+    for fw in FRAMEWORKS:
+        if fw["id"] not in report.frameworks:
             continue
-        lines += [f"## {title}", ""]
+        lines += [f"## {fw['title']}", ""]
         for r in report.results:
-            if r.framework != fw:
+            if r.framework != fw["id"]:
                 continue
             lines += [f"### {r.verdict.upper()} · {r.article} · {r.title}", "", r.obligation, ""]
             for e in r.evidence:

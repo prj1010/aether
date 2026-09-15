@@ -92,7 +92,7 @@ Same five-step loop as AICertify, original Aether policies, live Northstar inter
 from aether.certify import regulations, application
 
 regulations_set = regulations.create("my_regulations")
-print(regulations_set.list_available())
+print("Available:", [r["id"] for r in regulations_set.list_available()])
 regulations_set.add("eu_ai_act")
 regulations_set.add("nist_ai_rmf")
 regulations_set.add("operational")

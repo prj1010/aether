@@ -120,6 +120,10 @@ export function ingestPlainText(input: {
   text: string;
   author?: string;
   id?: string;
+  version?: number;
+  createdAt?: string;
+  validFrom?: string;
+  classification?: DocumentRecord["classification"];
 }): { document: DocumentRecord; chunks: IndexedChunk[] } {
   const now = new Date().toISOString();
   const id = input.id || `doc-user-${contentHash(input.title + now).slice(0, 10)}`;
@@ -128,17 +132,17 @@ export function ingestPlainText(input: {
     title: input.title,
     filename: input.filename || `${input.title.replace(/\s+/g, "-").toLowerCase()}.txt`,
     collection: input.collection,
-    version: 1,
+    version: input.version ?? 1,
     content: input.text,
     sourceUri: `upload://${input.filename || id}`,
     contentHash: contentHash(input.text),
     pageCount: Math.max(1, Math.ceil(input.text.length / 1800)),
-    validFrom: now.slice(0, 10),
+    validFrom: input.validFrom ?? now.slice(0, 10),
     validTo: null,
     supersededBy: null,
-    classification: "internal",
+    classification: input.classification ?? "internal",
     author: input.author ?? "Uploaded",
-    createdAt: now,
+    createdAt: input.createdAt ?? now,
     updatedAt: now,
     status: "indexed",
   };

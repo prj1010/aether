@@ -3,6 +3,10 @@
 #
 # Dashboard: New → Blueprint → pick prj1010/aether (this file).
 # Secrets with sync:false are typed once in the dashboard; never committed.
+#
+# Build installs Node deps, compiles the desk, then pip-installs
+# requirements.txt (aether-rag + aicertify==0.8.1). aicertify needs
+# Python 3.12 and pulls torch — free plan may OOM on that step.
 
 previews:
   generation: off
@@ -16,11 +20,13 @@ services:
     branch: main
     autoDeployTrigger: commit
     healthCheckPath: /
-    buildCommand: npm ci --include=dev && npm run build
+    buildCommand: npm ci --include=dev && npm run build && python3 -m pip install --upgrade pip && python3 -m pip install -r requirements.txt
     startCommand: node .output/server/index.mjs
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: PYTHON_VERSION
+        value: "3.12"
       - key: NITRO_PRESET
         value: node-server
       - key: HOST

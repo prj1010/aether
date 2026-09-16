@@ -1,16 +1,19 @@
-# Aether Python SDK (package name: aether-rag)
-# Runtime is stdlib-only. Requires Python >=3.10.
+# Aether Python SDK (package name: aether-rag) plus official AICertify.
 #
-# From any machine / Colab (no clone needed):
+# aether-rag: stdlib-only, Python >=3.10
+# aicertify==0.8.1 (Principled-Evolution/aicertify): Python >=3.12,<3.13
+#   pulls torch, transformers, langchain, and expects an OPA binary.
+#   Breaks 3.10/3.11 and light Colab CPU installs.
+#
 #   pip install -r requirements.txt
 #   pip install -r https://raw.githubusercontent.com/prj1010/aether/main/requirements.txt
 #
-# After a GitHub push, force-refresh the cached wheel:
-#   pip uninstall -y aether-rag
+# After a GitHub push, force-refresh:
+#   pip uninstall -y aether-rag aicertify
 #   pip install --upgrade --force-reinstall --no-cache-dir -r requirements.txt
 #
-# Local editable install from a clone (picks up uncommitted SDK edits):
+# Local editable SDK only (no aicertify):
 #   pip install -e ./sdk/python
-#   # or:  pip install -r sdk/python/requirements.txt
 
 aether-rag @ git+https://github.com/prj1010/aether.git@main#subdirectory=sdk/python
+aicertify==0.8.1

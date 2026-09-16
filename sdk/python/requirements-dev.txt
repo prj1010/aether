@@ -1,0 +1,4 @@
+# SDK test extras.
+#   pip install -r sdk/python/requirements-dev.txt
+-e .
+pytest>=8

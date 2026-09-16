@@ -1,0 +1,16 @@
+# Aether Python SDK (package name: aether-rag)
+# Runtime is stdlib-only. Requires Python >=3.10.
+#
+# From any machine / Colab (no clone needed):
+#   pip install -r requirements.txt
+#   pip install -r https://raw.githubusercontent.com/prj1010/aether/main/requirements.txt
+#
+# After a GitHub push, force-refresh the cached wheel:
+#   pip uninstall -y aether-rag
+#   pip install --upgrade --force-reinstall --no-cache-dir -r requirements.txt
+#
+# Local editable install from a clone (picks up uncommitted SDK edits):
+#   pip install -e ./sdk/python
+#   # or:  pip install -r sdk/python/requirements.txt
+
+aether-rag @ git+https://github.com/prj1010/aether.git@main#subdirectory=sdk/python

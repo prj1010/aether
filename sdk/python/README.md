@@ -16,12 +16,22 @@ for c in answer.citations:
 
 **Requires** Python 3.10+.
 
-Clone the repo, then install the package:
+From the repo root, the conventional pip file is [`requirements.txt`](../../requirements.txt):
+
+```bash
+git clone https://github.com/prj1010/aether.git
+cd aether
+pip install -r requirements.txt
+```
+
+Clone, then install this package editable:
 
 ```bash
 git clone https://github.com/prj1010/aether.git
 cd aether/sdk/python
 pip install -e .
+# or
+pip install -r requirements.txt
 # or
 uv pip install -e .
 ```
@@ -30,12 +40,20 @@ Install without cloning, straight from git:
 
 ```bash
 pip install "git+https://github.com/prj1010/aether.git#subdirectory=sdk/python"
+# same pin as the root requirements.txt:
+pip install -r https://raw.githubusercontent.com/prj1010/aether/main/requirements.txt
 ```
 
 A tagged / branch pin:
 
 ```bash
 pip install "git+https://github.com/prj1010/aether.git@main#subdirectory=sdk/python"
+```
+
+Dev extras (pytest):
+
+```bash
+pip install -r sdk/python/requirements-dev.txt
 ```
 
 ## Colab
@@ -45,7 +63,7 @@ Colab caches the previous `aether-rag` install. If `list_available()` raises `Ty
 ```python
 %pip uninstall -y aether-rag
 %pip install --upgrade --force-reinstall --no-cache-dir \
-  "git+https://github.com/prj1010/aether.git@main#subdirectory=sdk/python"
+  -r https://raw.githubusercontent.com/prj1010/aether/main/requirements.txt
 
 import sys
 for _m in [m for m in sys.modules if m == "aether" or m.startswith("aether.")]:
@@ -135,4 +153,3 @@ print(app.get_report())
 ```
 
 CLI: `aether certify --format html --out reports`
-

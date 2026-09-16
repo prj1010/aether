@@ -12,18 +12,33 @@ Same engine as the app: hybrid BM25 + hashed dense, entity graph, cited answers.
 
 ### Python
 
+Python deps are in **`requirements.txt`** (repo root) and `sdk/python/pyproject.toml`. There is no other pip lockfile.
+
 ```bash
 git clone https://github.com/prj1010/aether.git
-cd aether/sdk/python
-pip install -e .
+cd aether
+pip install -r requirements.txt
 aether ask "What is the vacation policy?"
 aether eval
 ```
 
-Or without cloning:
+Colab / no clone (same file):
+
+```bash
+pip install -r https://raw.githubusercontent.com/prj1010/aether/main/requirements.txt
+```
+
+Or install the package URL directly:
 
 ```bash
 pip install "git+https://github.com/prj1010/aether.git#subdirectory=sdk/python"
+```
+
+Local editable install from a clone (picks up uncommitted SDK edits):
+
+```bash
+pip install -e ./sdk/python
+# or: pip install -r sdk/python/requirements.txt
 ```
 
 ```python

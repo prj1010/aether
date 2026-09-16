@@ -1,0 +1,5 @@
+# Editable install of this package from a local clone.
+#   cd sdk/python && pip install -r requirements.txt
+#
+# Colab / no clone: use the repo-root requirements.txt instead.
+-e .

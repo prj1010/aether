@@ -8,10 +8,12 @@ import {
   getTrace,
   listEngineDocuments,
   recentTraces,
-  removeDocumentFromEngine,
   searchEngine,
-  updateDocumentInEngine,
 } from "@/lib/rag/engine";
+import {
+  removeDocumentFromEngine,
+  updateDocumentInEngine,
+} from "@/lib/rag/engine-mutate";
 import { extractUploadedFile, titleFromFilename } from "@/lib/rag/extract-upload";
 import { GOLDEN_EVAL, runGoldenEval } from "@/lib/rag/evaluate";
 import {

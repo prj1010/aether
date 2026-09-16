@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  addDocumentToEngine,
-  getEngineDocument,
-  removeDocumentFromEngine,
-  resetEngine,
-  updateDocumentInEngine,
-} from "./engine.ts";
+import { addDocumentToEngine, getEngineDocument, resetEngine } from "./engine.ts";
+import { removeDocumentFromEngine, updateDocumentInEngine } from "./engine-mutate.ts";
 
 test("updateDocumentInEngine reindexes and bumps version", () => {
   resetEngine();

@@ -8,7 +8,9 @@ import {
   getTrace,
   listEngineDocuments,
   recentTraces,
+  removeDocumentFromEngine,
   searchEngine,
+  updateDocumentInEngine,
 } from "@/lib/rag/engine";
 import { extractUploadedFile, titleFromFilename } from "@/lib/rag/extract-upload";
 import { GOLDEN_EVAL, runGoldenEval } from "@/lib/rag/evaluate";
@@ -99,8 +101,32 @@ async function persistUploaded(d: {
         ${d.sourceUri}, ${d.contentHash}, ${d.pageCount}, ${d.validFrom}, ${d.validTo},
         ${d.supersededBy}, ${d.classification}, ${d.author}, ${d.status}
       )
-      on conflict (id) do nothing
+      on conflict (id) do update set
+        title = excluded.title,
+        filename = excluded.filename,
+        collection = excluded.collection,
+        version = excluded.version,
+        content = excluded.content,
+        source_uri = excluded.source_uri,
+        content_hash = excluded.content_hash,
+        page_count = excluded.page_count,
+        valid_from = excluded.valid_from,
+        valid_to = excluded.valid_to,
+        superseded_by = excluded.superseded_by,
+        classification = excluded.classification,
+        author = excluded.author,
+        status = excluded.status,
+        updated_at = now()
     `;
+  } catch {
+    /* persistence is best-effort on PGLite */
+  }
+}
+
+async function deletePersisted(id: string) {
+  try {
+    const sql = await getSql();
+    await sql`delete from documents where id = ${id}`;
   } catch {
     /* persistence is best-effort on PGLite */
   }
@@ -144,247 +170,3 @@ async function recordMetric(row: {
     // Metrics are best-effort; never fail an answer.
   }
 }
-
-export const getOverview = createServerFn({ method: "GET" }).handler(async () => {
-  const stats = engineStats();
-  let metrics: {
-    requests: number;
-    p50: number;
-    p95: number;
-    meanConfidence: number;
-    llmShare: number;
-  } = { requests: stats.traces, p50: 0, p95: 0, meanConfidence: 0, llmShare: 0 };
-  try {
-    const sql = await getSql();
-    const rows = await sql<{
-      latency_ms: number;
-      confidence: number;
-      used_llm: number;
-    }>`select latency_ms, confidence, used_llm from query_metrics order by created_at desc limit 200`;
-    if (rows.length) {
-      const lat = rows.map((r) => Number(r.latency_ms)).sort((a, b) => a - b);
-      metrics = {
-        requests: rows.length,
-        p50: lat[Math.floor(lat.length * 0.5)] ?? 0,
-        p95: lat[Math.floor(lat.length * 0.95)] ?? lat[lat.length - 1] ?? 0,
-        meanConfidence:
-          rows.reduce((s, r) => s + Number(r.confidence), 0) / rows.length,
-        llmShare: rows.filter((r) => Number(r.used_llm) === 1).length / rows.length,
-      };
-    }
-  } catch {
-    /* empty */
-  }
-  return { stats, metrics };
-});
-
-export const getOtel = createServerFn({ method: "GET" }).handler(async () => {
-  return otelSnapshot();
-});
-
-export const getGeneratorStatus = createServerFn({ method: "GET" }).handler(async () => {
-  return { ...publicLlmStatus(), providers: LLM_PROVIDERS };
-});
-
-export const listDocs = createServerFn({ method: "GET" }).handler(async () => {
-  await hydrateUploads();
-  return listEngineDocuments().map((d) => ({
-    id: d.id,
-    title: d.title,
-    filename: d.filename,
-    collection: d.collection,
-    version: d.version,
-    pageCount: d.pageCount,
-    validFrom: d.validFrom,
-    validTo: d.validTo,
-    status: d.status,
-    classification: d.classification,
-    author: d.author,
-    chunkHint: d.content.length,
-  }));
-});
-
-export const getDoc = createServerFn({ method: "POST" })
-  .validator((input: { id: string }) => input)
-  .handler(async ({ data }) => {
-    const found = getEngineDocument(data.id);
-    if (!found) return null;
-    return {
-      document: found.document,
-      chunks: found.chunks.map((c) => ({
-        id: c.id,
-        section: c.section,
-        page: c.page,
-        content: c.content,
-        entities: c.entities,
-        tokenCount: c.tokenCount,
-      })),
-    };
-  });
-
-export const askKnowledge = createServerFn({ method: "POST" })
-  .validator(
-    (input: {
-      query: string;
-      memory?: MemoryItem[];
-      forcePath?: "fast" | "deep" | "adaptive";
-      shardMode?: "adaptive" | "all";
-    }) => input,
-  )
-  .handler(async ({ data }) => {
-    const result = await askEngine({
-      query: data.query.slice(0, 2000),
-      memory: data.memory ?? [],
-      forcePath: data.forcePath ?? "adaptive",
-      shardMode: data.shardMode ?? "adaptive",
-    });
-    await recordMetric({
-      id: result.trace.id,
-      kind: result.kind,
-      path: result.path,
-      latencyMs: result.latencyMs,
-      confidence: result.confidence.score,
-      citationCount: result.citations.length,
-      usedLlm: result.trace.generation.usedLlm,
-    });
-    return result;
-  });
-
-export const searchKnowledge = createServerFn({ method: "POST" })
-  .validator((input: { query: string }) => input)
-  .handler(async ({ data }) => {
-    return searchEngine(data.query.slice(0, 500), 16);
-  });
-
-export const ingestDocument = createServerFn({ method: "POST" })
-  .validator(
-    (input: {
-      title: string;
-      filename: string;
-      collection: CollectionId;
-      text: string;
-    }) => input,
-  )
-  .handler(async ({ data }) => {
-    await hydrateUploads();
-    return indexText({
-      title: data.title,
-      filename: data.filename,
-      collection: asCollection(data.collection),
-      text: data.text,
-    });
-  });
-
-export const ingestUpload = createServerFn({ method: "POST" })
-  .validator(
-    (input: {
-      title: string;
-      filename: string;
-      collection: CollectionId;
-      bytesBase64: string;
-    }) => input,
-  )
-  .handler(async ({ data }) => {
-    await hydrateUploads();
-    const raw = data.bytesBase64.replace(/^data:[^;]+;base64,/, "");
-    const bytes = Buffer.from(raw, "base64");
-    const text = extractUploadedFile(data.filename, bytes);
-    return indexText({
-      title: data.title,
-      filename: data.filename,
-      collection: asCollection(data.collection),
-      text,
-    });
-  });
-
-export const getSystemPrompt = createServerFn({ method: "GET" }).handler(async () => {
-  return { prompt: getOperatorPrompt(), isDefault: getOperatorPrompt() === DEFAULT_OPERATOR_PROMPT };
-});
-
-export const saveSystemPrompt = createServerFn({ method: "POST" })
-  .validator((input: { prompt: string }) => input)
-  .handler(async ({ data }) => {
-    const prompt = setOperatorPrompt(data.prompt.slice(0, 120_000));
-    return { prompt, isDefault: prompt === DEFAULT_OPERATOR_PROMPT };
-  });
-
-export const listTraces = createServerFn({ method: "GET" }).handler(async () => {
-  return recentTraces(24);
-});
-
-export const fetchTrace = createServerFn({ method: "POST" })
-  .validator((input: { id: string }) => input)
-  .handler(async ({ data }) => {
-    return getTrace(data.id) ?? null;
-  });
-
-export const runEvalSuite = createServerFn({ method: "POST" }).handler(async () => {
-  return runGoldenEval();
-});
-
-export const listGolden = createServerFn({ method: "GET" }).handler(async () => {
-  return GOLDEN_EVAL;
-});
-
-export const submitRating = createServerFn({ method: "POST" })
-  .validator(
-    (input: {
-      question: string;
-      expectedAnswer?: string;
-      actualAnswer: string;
-      rating: "correct" | "partial" | "incorrect";
-    }) => input,
-  )
-  .handler(async ({ data }) => {
-    const sql = await getSql();
-    const id = `rt_${Date.now().toString(36)}`;
-    await sql`
-      insert into eval_ratings (id, question, expected_answer, actual_answer, rating)
-      values (${id}, ${data.question}, ${data.expectedAnswer ?? ""}, ${data.actualAnswer}, ${data.rating})
-    `;
-    return { id };
-  });
-
-export const listRatings = createServerFn({ method: "GET" }).handler(async () => {
-  try {
-    const sql = await getSql();
-    return await sql<{
-      id: string;
-      question: string;
-      rating: string;
-      created_at: string;
-    }>`select id, question, rating, created_at from eval_ratings order by created_at desc limit 40`;
-  } catch {
-    return [];
-  }
-});
-
-export const listComplianceCatalog = createServerFn({ method: "GET" }).handler(async () => {
-  const llm = publicLlmStatus();
-  return {
-    frameworks: FRAMEWORKS,
-    steps: COMPLIANCE_STEPS,
-    available: FRAMEWORKS.map((f) => f.id),
-    application: {
-      name: NORTHSTAR_DECLARED.applicationName,
-      modelName: llm.model,
-      modelVersion: "1.0",
-      purpose: NORTHSTAR_DECLARED.purpose,
-      operator: NORTHSTAR_DECLARED.operator,
-    },
-    policies: POLICIES.map((p) => ({
-      id: p.id,
-      framework: p.framework,
-      article: p.article,
-      title: p.title,
-      obligation: p.obligation,
-    })),
-    last: lastComplianceReport(),
-  };
-});
-
-export const runComplianceSuite = createServerFn({ method: "POST" })
-  .validator((input: { frameworks?: FrameworkId[] }) => input)
-  .handler(async ({ data }) => {
-    return runCompliance(data.frameworks);
-  });
